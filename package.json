@@ -1,0 +1,67 @@
+{
+  "name": "@link-loom/cloud-sdk",
+  "version": "1.0.0",
+  "description": "SDK for consuming Link Loom Cloud services. Service-to-service clients, React components, and app runtime contract.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/cloud-sdk.cjs.cjs",
+  "module": "dist/cloud-sdk.esm.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/cloud-sdk.cjs.cjs",
+      "import": "./dist/cloud-sdk.esm.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c rollup.config.cjs",
+    "version-patch": "npm version patch",
+    "version-deploy": "npm publish"
+  },
+  "author": "Camilo Alexander Rodriguez Cuaran <camiepisode@outlook.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/link-loom/link-loom-cloud-sdk.git"
+  },
+  "homepage": "https://github.com/link-loom/link-loom-cloud-sdk",
+  "keywords": [
+    "link-loom",
+    "cloud",
+    "sdk",
+    "app-engine",
+    "javascript",
+    "react"
+  ],
+  "peerDependencies": {
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-router-dom": "^5.0.0 || ^6.0.0 || ^7.0.0"
+  },
+  "dependencies": {
+    "@link-loom/react-sdk": "file:../link-loom-react-sdk",
+    "@monaco-editor/react": "^4.7.0",
+    "axios": "^1.7.7",
+    "styled-components": "^6.3.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.3",
+    "@babel/preset-env": "^7.24.3",
+    "@babel/preset-react": "^7.24.1",
+    "@rollup/plugin-alias": "^5.1.0",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "postcss": "^8.4.38",
+    "rollup": "^4.13.2",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.2"
+  }
+}
