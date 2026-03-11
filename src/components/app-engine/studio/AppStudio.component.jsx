@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import { updateEntityRecord } from '../../../services/utils/entityServiceAdapter';
 import StudioToolbar from './panels/StudioToolbar.component';
@@ -7,33 +6,7 @@ import FileExplorer from './panels/FileExplorer.component';
 import EditorArea from './panels/EditorArea.component';
 import PropertiesPanel from './panels/PropertiesPanel.component';
 import BottomPanel from './panels/BottomPanel.component';
-
-const StudioContainer = styled('div')({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  backgroundColor: '#1E1E1E',
-  overflow: 'hidden',
-});
-
-const MainContent = styled('div')({
-  flex: 1,
-  display: 'flex',
-  overflow: 'hidden',
-});
-
-const FileExplorerWrapper = styled('div')({
-  width: '240px',
-  minWidth: '240px',
-  height: '100%',
-});
-
-const CenterArea = styled('div')({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-});
+import { STUDIO_UI_DEFAULTS, mergeDefaults } from '../defaults/appEngine.defaults';
 
 const AppStudio = ({
   appDefinitionId,
@@ -41,10 +14,15 @@ const AppStudio = ({
   appFileService,
   appVersionService,
   appBuildService,
+  ui = STUDIO_UI_DEFAULTS,
   onBack,
   onRun,
   onNavigateToRuntime,
+  className = '',
 }) => {
+  const config = mergeDefaults(STUDIO_UI_DEFAULTS, ui);
+  const theme = config.theme || STUDIO_UI_DEFAULTS.theme;
+
   const [appDefinition, setAppDefinition] = useState(null);
   const [fileTree, setFileTree] = useState([]);
   const [openFiles, setOpenFiles] = useState([]);
@@ -55,6 +33,8 @@ const AppStudio = ({
   const [buildErrors, setBuildErrors] = useState([]);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const isDirty = openFiles.some((f) => f.isDirty);
   const definitionDirtyRef = useRef(false);
@@ -199,6 +179,8 @@ const AppStudio = ({
   const handlePublish = useCallback(async () => {
     if (!appVersionService) return;
 
+    setIsPublishing(true);
+
     try {
       const response = await appVersionService.publish({
         app_definition_id: appDefinitionId,
@@ -209,6 +191,8 @@ const AppStudio = ({
       }
     } catch (error) {
       console.error('Failed to publish:', error);
+    } finally {
+      setIsPublishing(false);
     }
   }, [appVersionService, appDefinitionId]);
 
@@ -217,36 +201,64 @@ const AppStudio = ({
     definitionDirtyRef.current = true;
   }, []);
 
+  const handlePreview = useCallback(async () => {
+    if (!onNavigateToRuntime) return;
+    setIsPreviewing(true);
+    try {
+      await onNavigateToRuntime(appDefinition);
+    } catch (error) {
+      console.error('Failed to navigate to runtime:', error);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [onNavigateToRuntime, appDefinition]);
+
   const handleRunApp = useCallback(() => {
     if (onRun) onRun(appDefinition);
   }, [onRun, appDefinition]);
 
+  const fileExplorerWidth = theme.fileExplorerWidth || STUDIO_UI_DEFAULTS.theme.fileExplorerWidth;
+
   return (
-    <StudioContainer>
+    <div
+      className={className || undefined}
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: theme.background,
+        overflow: 'hidden',
+      }}
+    >
       <StudioToolbar
         appName={appDefinition?.name}
         isSaving={isSaving}
         isDirty={isDirty || definitionDirtyRef.current}
         buildStatus={buildStatus}
+        isPublishing={isPublishing}
+        isPreviewing={isPreviewing}
         onBack={onBack}
         onSave={handleSave}
         onBuild={handleBuild}
         onPublish={handlePublish}
+        onPreview={handlePreview}
         onRun={handleRunApp}
         onToggleProperties={() => setIsPropertiesOpen(!isPropertiesOpen)}
         isPropertiesOpen={isPropertiesOpen}
+        ui={config}
       />
 
-      <MainContent>
-        <FileExplorerWrapper>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ width: `${fileExplorerWidth}px`, minWidth: `${fileExplorerWidth}px`, height: '100%' }}>
           <FileExplorer
             fileTree={fileTree}
             activeFilePath={activeFilePath}
             onFileSelect={handleFileSelect}
+            ui={config}
           />
-        </FileExplorerWrapper>
+        </div>
 
-        <CenterArea>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <Box sx={{ flex: 1, overflow: 'hidden' }}>
             <EditorArea
               openFiles={openFiles}
@@ -254,6 +266,7 @@ const AppStudio = ({
               onTabChange={handleTabChange}
               onTabClose={handleTabClose}
               onContentChange={handleContentChange}
+              ui={config}
             />
           </Box>
           <BottomPanel
@@ -261,17 +274,19 @@ const AppStudio = ({
             buildErrors={buildErrors}
             isOpen={isBottomPanelOpen}
             onToggle={setIsBottomPanelOpen}
+            ui={config}
           />
-        </CenterArea>
+        </div>
 
         <PropertiesPanel
           isOpen={isPropertiesOpen}
           onClose={() => setIsPropertiesOpen(false)}
           appDefinition={appDefinition}
           onUpdateDefinition={handleUpdateDefinition}
+          ui={config}
         />
-      </MainContent>
-    </StudioContainer>
+      </div>
+    </div>
   );
 };
 

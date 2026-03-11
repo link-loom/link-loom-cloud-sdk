@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -10,44 +9,7 @@ import NoteAddIcon from '@mui/icons-material/NoteAdd';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-
-const PanelContainer = styled('div')({
-  height: '100%',
-  backgroundColor: '#1F1E26',
-  borderRight: '1px solid #6B728040',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-});
-
-const PanelHeader = styled('div')({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '8px 12px',
-  borderBottom: '1px solid #6B728040',
-  minHeight: '36px',
-});
-
-const TreeContainer = styled('div')({
-  flex: 1,
-  overflowY: 'auto',
-  padding: '4px 0',
-});
-
-const TreeItem = styled('div')(({ $depth, $isActive }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: '4px',
-  padding: `3px 8px 3px ${8 + $depth * 16}px`,
-  cursor: 'pointer',
-  fontSize: '12px',
-  color: $isActive ? '#EAEAF0' : '#9CA3AF',
-  backgroundColor: $isActive ? '#7C3AED20' : 'transparent',
-  '&:hover': {
-    backgroundColor: $isActive ? '#7C3AED20' : '#2B2A33',
-  },
-}));
+import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const FileExplorer = ({
   fileTree = [],
@@ -55,7 +17,11 @@ const FileExplorer = ({
   onFileSelect,
   onCreateFile,
   onCreateFolder,
+  ui = STUDIO_UI_DEFAULTS,
 }) => {
+  const theme = ui.theme || STUDIO_UI_DEFAULTS.theme;
+  const fileColors = theme.fileColors || STUDIO_UI_DEFAULTS.theme.fileColors;
+
   const [expandedFolders, setExpandedFolders] = useState(new Set(['/src', '/src/components', '/src/views']));
 
   const tree = useMemo(() => {
@@ -82,6 +48,10 @@ const FileExplorer = ({
     }
   };
 
+  const getFileColor = (language) => {
+    return fileColors[language] || fileColors.default || theme.textMuted;
+  };
+
   const renderTree = (nodes, depth = 0) => {
     return nodes.map((node) => {
       const isFolder = node.kind === 'folder';
@@ -90,21 +60,39 @@ const FileExplorer = ({
 
       return (
         <React.Fragment key={node.path}>
-          <TreeItem $depth={depth} $isActive={isActive} onClick={() => handleItemClick(node)}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: `3px 8px 3px ${8 + depth * 16}px`,
+              cursor: 'pointer',
+              fontSize: '12px',
+              color: isActive ? theme.textPrimary : theme.textSecondary,
+              backgroundColor: isActive ? theme.brandPrimaryHighlight : 'transparent',
+            }}
+            onClick={() => handleItemClick(node)}
+            onMouseEnter={(e) => {
+              if (!isActive) e.currentTarget.style.backgroundColor = theme.inputBackground;
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
             {isFolder ? (
-              isExpanded ? <ExpandMoreIcon sx={{ fontSize: 14, color: '#6B7280' }} /> : <ChevronRightIcon sx={{ fontSize: 14, color: '#6B7280' }} />
+              isExpanded ? <ExpandMoreIcon sx={{ fontSize: 14, color: theme.textMuted }} /> : <ChevronRightIcon sx={{ fontSize: 14, color: theme.textMuted }} />
             ) : (
               <span style={{ width: 14 }} />
             )}
             {isFolder ? (
-              isExpanded ? <FolderOpenIcon sx={{ fontSize: 14, color: '#F59E0B' }} /> : <FolderIcon sx={{ fontSize: 14, color: '#F59E0B' }} />
+              isExpanded ? <FolderOpenIcon sx={{ fontSize: 14, color: fileColors.folder }} /> : <FolderIcon sx={{ fontSize: 14, color: fileColors.folder }} />
             ) : (
               <InsertDriveFileIcon sx={{ fontSize: 14, color: getFileColor(node.language) }} />
             )}
             <Typography sx={{ fontSize: '12px', color: 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {node.name}
             </Typography>
-          </TreeItem>
+          </div>
           {isFolder && isExpanded && node.children?.length > 0 && renderTree(node.children, depth + 1)}
         </React.Fragment>
       );
@@ -112,28 +100,46 @@ const FileExplorer = ({
   };
 
   return (
-    <PanelContainer>
-      <PanelHeader>
-        <Typography sx={{ color: '#9CA3AF', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Explorer
+    <div
+      style={{
+        height: '100%',
+        backgroundColor: theme.panelBackground,
+        borderRight: `1px solid ${theme.border}`,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          borderBottom: `1px solid ${theme.border}`,
+          minHeight: '36px',
+        }}
+      >
+        <Typography sx={{ color: theme.textSecondary, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {ui.explorerTitle || STUDIO_UI_DEFAULTS.explorerTitle}
         </Typography>
         <Box sx={{ display: 'flex', gap: '2px' }}>
           {onCreateFile && (
-            <IconButton size="small" onClick={onCreateFile} sx={{ color: '#6B7280', padding: '2px' }}>
+            <IconButton size="small" onClick={onCreateFile} sx={{ color: theme.textMuted, padding: '2px' }}>
               <NoteAddIcon sx={{ fontSize: 16 }} />
             </IconButton>
           )}
           {onCreateFolder && (
-            <IconButton size="small" onClick={onCreateFolder} sx={{ color: '#6B7280', padding: '2px' }}>
+            <IconButton size="small" onClick={onCreateFolder} sx={{ color: theme.textMuted, padding: '2px' }}>
               <CreateNewFolderIcon sx={{ fontSize: 16 }} />
             </IconButton>
           )}
         </Box>
-      </PanelHeader>
-      <TreeContainer>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
         {renderTree(tree)}
-      </TreeContainer>
-    </PanelContainer>
+      </div>
+    </div>
   );
 };
 
@@ -168,17 +174,6 @@ function buildTree(files) {
   root.push(...orphanFiles);
 
   return root;
-}
-
-function getFileColor(language) {
-  const colors = {
-    jsx: '#61DAFB',
-    js: '#F7DF1E',
-    css: '#264DE4',
-    json: '#6B7280',
-    html: '#E34F26',
-  };
-  return colors[language] || '#6B7280';
 }
 
 export default FileExplorer;

@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Tabs from '@mui/material/Tabs';
@@ -7,57 +6,7 @@ import Tab from '@mui/material/Tab';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import Editor from '@monaco-editor/react';
-
-const EditorContainer = styled('div')({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  backgroundColor: '#1E1E1E',
-  overflow: 'hidden',
-});
-
-const TabsContainer = styled('div')({
-  backgroundColor: '#252526',
-  borderBottom: '1px solid #6B728040',
-  minHeight: '35px',
-});
-
-const EditorWrapper = styled('div')({
-  flex: 1,
-  overflow: 'hidden',
-});
-
-const EmptyEditor = styled('div')({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  color: '#6B7280',
-});
-
-const StyledTab = styled(Tab)(({ $isDirty }) => ({
-  minHeight: '35px',
-  padding: '0 12px',
-  textTransform: 'none',
-  fontSize: '12px',
-  color: '#9CA3AF',
-  '&.Mui-selected': {
-    color: '#EAEAF0',
-    backgroundColor: '#1E1E1E',
-  },
-  '& .tab-label': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  '& .dirty-indicator': {
-    display: $isDirty ? 'inline-block' : 'none',
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#EAEAF0',
-  },
-}));
+import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const EditorArea = ({
   openFiles = [],
@@ -65,7 +14,11 @@ const EditorArea = ({
   onTabChange,
   onTabClose,
   onContentChange,
+  ui = STUDIO_UI_DEFAULTS,
 }) => {
+  const theme = ui.theme || STUDIO_UI_DEFAULTS.theme;
+  const editorOptions = ui.editorOptions || STUDIO_UI_DEFAULTS.editorOptions;
+
   const activeFile = openFiles.find((f) => f.path === activeFilePath);
   const activeIndex = openFiles.findIndex((f) => f.path === activeFilePath);
 
@@ -102,10 +55,10 @@ const EditorArea = ({
   };
 
   return (
-    <EditorContainer>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: theme.background, overflow: 'hidden' }}>
       {openFiles.length > 0 ? (
         <>
-          <TabsContainer>
+          <div style={{ backgroundColor: theme.tabsBackground, borderBottom: `1px solid ${theme.border}`, minHeight: '35px' }}>
             <Tabs
               value={activeIndex >= 0 ? activeIndex : 0}
               onChange={handleTabChange}
@@ -113,22 +66,31 @@ const EditorArea = ({
               scrollButtons="auto"
               sx={{
                 minHeight: '35px',
-                '& .MuiTabs-indicator': { backgroundColor: '#7C3AED', height: '2px' },
-                '& .MuiTabs-scrollButtons': { color: '#6B7280' },
+                '& .MuiTabs-indicator': { backgroundColor: theme.brandPrimary, height: '2px' },
+                '& .MuiTabs-scrollButtons': { color: theme.textMuted },
               }}
             >
               {openFiles.map((file) => (
-                <StyledTab
+                <Tab
                   key={file.path}
-                  $isDirty={file.isDirty}
+                  sx={{
+                    minHeight: '35px',
+                    padding: '0 12px',
+                    textTransform: 'none',
+                    fontSize: '12px',
+                    color: theme.textSecondary,
+                    '&.Mui-selected': { color: theme.textPrimary, backgroundColor: theme.background },
+                  }}
                   label={
-                    <span className="tab-label">
-                      <span className="dirty-indicator" />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {file.isDirty && (
+                        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: theme.textPrimary }} />
+                      )}
                       {file.name || file.path.split('/').pop()}
                       <IconButton
                         size="small"
                         onClick={(e) => handleTabClose(e, file.path)}
-                        sx={{ color: '#6B7280', padding: '1px', ml: '4px', '&:hover': { color: '#EAEAF0' } }}
+                        sx={{ color: theme.textMuted, padding: '1px', ml: '4px', '&:hover': { color: theme.textPrimary } }}
                       >
                         <CloseIcon sx={{ fontSize: 12 }} />
                       </IconButton>
@@ -137,38 +99,38 @@ const EditorArea = ({
                 />
               ))}
             </Tabs>
-          </TabsContainer>
-          <EditorWrapper>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
             {activeFile && (
               <Editor
                 height="100%"
                 language={getLanguage(activeFile.path)}
                 value={activeFile.content || ''}
                 onChange={handleEditorChange}
-                theme="vs-dark"
+                theme={editorOptions.theme || 'vs-dark'}
                 options={{
-                  minimap: { enabled: true },
-                  fontSize: 13,
-                  lineNumbers: 'on',
-                  scrollBeyondLastLine: false,
-                  wordWrap: 'on',
-                  tabSize: 2,
-                  automaticLayout: true,
-                  padding: { top: 8 },
+                  minimap: editorOptions.minimap,
+                  fontSize: editorOptions.fontSize,
+                  lineNumbers: editorOptions.lineNumbers,
+                  scrollBeyondLastLine: editorOptions.scrollBeyondLastLine,
+                  wordWrap: editorOptions.wordWrap,
+                  tabSize: editorOptions.tabSize,
+                  automaticLayout: editorOptions.automaticLayout !== false,
+                  padding: editorOptions.padding || { top: 8 },
                 }}
               />
             )}
-          </EditorWrapper>
+          </div>
         </>
       ) : (
-        <EmptyEditor>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: theme.textMuted }}>
           <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '14px', mb: 1 }}>No file open</Typography>
-            <Typography sx={{ fontSize: '12px' }}>Select a file from the explorer to start editing</Typography>
+            <Typography sx={{ fontSize: '14px', mb: 1 }}>{ui.noFileOpen || STUDIO_UI_DEFAULTS.noFileOpen}</Typography>
+            <Typography sx={{ fontSize: '12px' }}>{ui.noFileHint || STUDIO_UI_DEFAULTS.noFileHint}</Typography>
           </Box>
-        </EmptyEditor>
+        </div>
       )}
-    </EditorContainer>
+    </div>
   );
 };
 

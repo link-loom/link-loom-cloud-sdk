@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -11,74 +10,18 @@ import MenuItem from '@mui/material/MenuItem';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-
-const PanelContainer = styled('div')(({ $isOpen }) => ({
-  height: '100%',
-  width: $isOpen ? '300px' : '0px',
-  minWidth: $isOpen ? '300px' : '0px',
-  backgroundColor: '#1F1E26',
-  borderLeft: $isOpen ? '1px solid #6B728040' : 'none',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-  transition: 'width 0.2s, min-width 0.2s',
-}));
-
-const PanelHeader = styled('div')({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '8px 12px',
-  borderBottom: '1px solid #6B728040',
-  minHeight: '36px',
-});
-
-const PanelContent = styled('div')({
-  flex: 1,
-  overflowY: 'auto',
-  padding: '12px',
-});
-
-const FieldGroup = styled('div')({
-  marginBottom: '16px',
-});
-
-const FieldLabel = styled(Typography)({
-  color: '#9CA3AF',
-  fontSize: '11px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-  marginBottom: '6px',
-});
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: '#2B2A33',
-    color: '#EAEAF0',
-    fontSize: '13px',
-    '& fieldset': { borderColor: '#6B728040' },
-    '&:hover fieldset': { borderColor: '#7C3AED' },
-    '&.Mui-focused fieldset': { borderColor: '#7C3AED' },
-  },
-};
-
-const selectSx = {
-  backgroundColor: '#2B2A33',
-  color: '#EAEAF0',
-  fontSize: '13px',
-  '& fieldset': { borderColor: '#6B728040' },
-  '&:hover fieldset': { borderColor: '#7C3AED' },
-  '&.Mui-focused fieldset': { borderColor: '#7C3AED' },
-  '& .MuiSelect-icon': { color: '#6B7280' },
-};
+import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const PropertiesPanel = ({
   isOpen = true,
   onClose,
   appDefinition,
   onUpdateDefinition,
+  ui = STUDIO_UI_DEFAULTS,
 }) => {
+  const theme = ui.theme || STUDIO_UI_DEFAULTS.theme;
+  const panelWidth = theme.propertiesPanelWidth || STUDIO_UI_DEFAULTS.theme.propertiesPanelWidth;
+
   const [activeTab, setActiveTab] = useState(0);
 
   const handleFieldChange = (field, value) => {
@@ -96,18 +39,69 @@ const PropertiesPanel = ({
     onUpdateDefinition({ ...appDefinition, manifest: updatedManifest });
   };
 
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: theme.inputBackground,
+      color: theme.textPrimary,
+      fontSize: '13px',
+      '& fieldset': { borderColor: theme.border },
+      '&:hover fieldset': { borderColor: theme.brandPrimary },
+      '&.Mui-focused fieldset': { borderColor: theme.brandPrimary },
+    },
+  };
+
+  const selectSx = {
+    backgroundColor: theme.inputBackground,
+    color: theme.textPrimary,
+    fontSize: '13px',
+    '& fieldset': { borderColor: theme.border },
+    '&:hover fieldset': { borderColor: theme.brandPrimary },
+    '&.Mui-focused fieldset': { borderColor: theme.brandPrimary },
+    '& .MuiSelect-icon': { color: theme.textMuted },
+  };
+
+  const fieldLabelSx = {
+    color: theme.textSecondary,
+    fontSize: '11px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: '6px',
+  };
+
   return (
-    <PanelContainer $isOpen={isOpen}>
-      <PanelHeader>
-        <Typography sx={{ color: '#9CA3AF', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Properties
+    <div
+      style={{
+        height: '100%',
+        width: isOpen ? `${panelWidth}px` : '0px',
+        minWidth: isOpen ? `${panelWidth}px` : '0px',
+        backgroundColor: theme.panelBackground,
+        borderLeft: isOpen ? `1px solid ${theme.border}` : 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        transition: 'width 0.2s, min-width 0.2s',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          borderBottom: `1px solid ${theme.border}`,
+          minHeight: '36px',
+        }}
+      >
+        <Typography sx={{ color: theme.textSecondary, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {ui.propertiesTitle || STUDIO_UI_DEFAULTS.propertiesTitle}
         </Typography>
         {onClose && (
-          <IconButton size="small" onClick={onClose} sx={{ color: '#6B7280', padding: '2px' }}>
+          <IconButton size="small" onClick={onClose} sx={{ color: theme.textMuted, padding: '2px' }}>
             <ChevronLeftIcon sx={{ fontSize: 16, transform: 'rotate(180deg)' }} />
           </IconButton>
         )}
-      </PanelHeader>
+      </div>
 
       <Tabs
         value={activeTab}
@@ -115,57 +109,57 @@ const PropertiesPanel = ({
         variant="fullWidth"
         sx={{
           minHeight: '32px',
-          borderBottom: '1px solid #6B728040',
-          '& .MuiTab-root': { minHeight: '32px', fontSize: '11px', textTransform: 'none', color: '#9CA3AF' },
-          '& .Mui-selected': { color: '#EAEAF0' },
-          '& .MuiTabs-indicator': { backgroundColor: '#7C3AED' },
+          borderBottom: `1px solid ${theme.border}`,
+          '& .MuiTab-root': { minHeight: '32px', fontSize: '11px', textTransform: 'none', color: theme.textSecondary },
+          '& .Mui-selected': { color: theme.textPrimary },
+          '& .MuiTabs-indicator': { backgroundColor: theme.brandPrimary },
         }}
       >
-        <Tab label="General" />
-        <Tab label="Manifest" />
-        <Tab label="Routes" />
+        <Tab label={ui.tabGeneral || STUDIO_UI_DEFAULTS.tabGeneral} />
+        <Tab label={ui.tabManifest || STUDIO_UI_DEFAULTS.tabManifest} />
+        <Tab label={ui.tabRoutes || STUDIO_UI_DEFAULTS.tabRoutes} />
       </Tabs>
 
-      <PanelContent>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
         {activeTab === 0 && (
           <>
-            <FieldGroup>
-              <FieldLabel>Name</FieldLabel>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldName || STUDIO_UI_DEFAULTS.fieldName}</Typography>
               <TextField fullWidth size="small" value={appDefinition?.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} sx={inputSx} />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Slug</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldSlug || STUDIO_UI_DEFAULTS.fieldSlug}</Typography>
               <TextField fullWidth size="small" value={appDefinition?.slug || ''} onChange={(e) => handleFieldChange('slug', e.target.value)} sx={inputSx} />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Description</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldDescription || STUDIO_UI_DEFAULTS.fieldDescription}</Typography>
               <TextField fullWidth size="small" multiline rows={3} value={appDefinition?.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} sx={inputSx} />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Category</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldCategory || STUDIO_UI_DEFAULTS.fieldCategory}</Typography>
               <TextField fullWidth size="small" value={appDefinition?.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} sx={inputSx} />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Icon</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldIcon || STUDIO_UI_DEFAULTS.fieldIcon}</Typography>
               <TextField fullWidth size="small" value={appDefinition?.icon || ''} onChange={(e) => handleFieldChange('icon', e.target.value)} sx={inputSx} />
-            </FieldGroup>
+            </div>
             {appDefinition?.tags?.length > 0 && (
-              <FieldGroup>
-                <FieldLabel>Tags</FieldLabel>
+              <div style={{ marginBottom: '16px' }}>
+                <Typography sx={fieldLabelSx}>{ui.fieldTags || STUDIO_UI_DEFAULTS.fieldTags}</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                   {appDefinition.tags.map((tag, i) => (
-                    <Chip key={i} label={tag} size="small" sx={{ backgroundColor: '#7C3AED20', color: '#A78BFA', fontSize: '11px', height: '22px' }} />
+                    <Chip key={i} label={tag} size="small" sx={{ backgroundColor: theme.brandPrimaryHighlight, color: theme.brandPrimarySubtle, fontSize: '11px', height: '22px' }} />
                   ))}
                 </Box>
-              </FieldGroup>
+              </div>
             )}
           </>
         )}
 
         {activeTab === 1 && (
           <>
-            <FieldGroup>
-              <FieldLabel>Kind</FieldLabel>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldKind || STUDIO_UI_DEFAULTS.fieldKind}</Typography>
               <Select
                 fullWidth
                 size="small"
@@ -173,12 +167,12 @@ const PropertiesPanel = ({
                 onChange={(e) => handleManifestFieldChange('kind', e.target.value)}
                 sx={selectSx}
               >
-                <MenuItem value="workspace">Workspace</MenuItem>
-                <MenuItem value="utility">Utility</MenuItem>
+                <MenuItem value="workspace">{ui.kindWorkspace || STUDIO_UI_DEFAULTS.kindWorkspace}</MenuItem>
+                <MenuItem value="utility">{ui.kindUtility || STUDIO_UI_DEFAULTS.kindUtility}</MenuItem>
               </Select>
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Launcher Visibility</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldLauncherVisibility || STUDIO_UI_DEFAULTS.fieldLauncherVisibility}</Typography>
               <Select
                 fullWidth
                 size="small"
@@ -186,13 +180,13 @@ const PropertiesPanel = ({
                 onChange={(e) => handleManifestFieldChange('launcher_visibility', e.target.value)}
                 sx={selectSx}
               >
-                <MenuItem value="visible">Visible</MenuItem>
-                <MenuItem value="hidden">Hidden</MenuItem>
-                <MenuItem value="system">System</MenuItem>
+                <MenuItem value="visible">{ui.visibilityVisible || STUDIO_UI_DEFAULTS.visibilityVisible}</MenuItem>
+                <MenuItem value="hidden">{ui.visibilityHidden || STUDIO_UI_DEFAULTS.visibilityHidden}</MenuItem>
+                <MenuItem value="system">{ui.visibilitySystem || STUDIO_UI_DEFAULTS.visibilitySystem}</MenuItem>
               </Select>
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Entry Behavior</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldEntryBehavior || STUDIO_UI_DEFAULTS.fieldEntryBehavior}</Typography>
               <Select
                 fullWidth
                 size="small"
@@ -200,31 +194,31 @@ const PropertiesPanel = ({
                 onChange={(e) => handleManifestFieldChange('entry_behavior', e.target.value)}
                 sx={selectSx}
               >
-                <MenuItem value="home">Home</MenuItem>
-                <MenuItem value="context-required">Context Required</MenuItem>
-                <MenuItem value="route-only">Route Only</MenuItem>
+                <MenuItem value="home">{ui.behaviorHome || STUDIO_UI_DEFAULTS.behaviorHome}</MenuItem>
+                <MenuItem value="context-required">{ui.behaviorContextRequired || STUDIO_UI_DEFAULTS.behaviorContextRequired}</MenuItem>
+                <MenuItem value="route-only">{ui.behaviorRouteOnly || STUDIO_UI_DEFAULTS.behaviorRouteOnly}</MenuItem>
               </Select>
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Pinnable</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldPinnable || STUDIO_UI_DEFAULTS.fieldPinnable}</Typography>
               <Switch
                 checked={appDefinition?.manifest?.pinnable !== false}
                 onChange={(e) => handleManifestFieldChange('pinnable', e.target.checked)}
                 size="small"
-                sx={{ '& .Mui-checked': { color: '#7C3AED' }, '& .Mui-checked + .MuiSwitch-track': { backgroundColor: '#7C3AED' } }}
+                sx={{ '& .Mui-checked': { color: theme.brandPrimary }, '& .Mui-checked + .MuiSwitch-track': { backgroundColor: theme.brandPrimary } }}
               />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Requires Context</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldRequiresContext || STUDIO_UI_DEFAULTS.fieldRequiresContext}</Typography>
               <Switch
                 checked={appDefinition?.manifest?.requires_context || false}
                 onChange={(e) => handleManifestFieldChange('requires_context', e.target.checked)}
                 size="small"
-                sx={{ '& .Mui-checked': { color: '#7C3AED' }, '& .Mui-checked + .MuiSwitch-track': { backgroundColor: '#7C3AED' } }}
+                sx={{ '& .Mui-checked': { color: theme.brandPrimary }, '& .Mui-checked + .MuiSwitch-track': { backgroundColor: theme.brandPrimary } }}
               />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Entry Route</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldEntryRoute || STUDIO_UI_DEFAULTS.fieldEntryRoute}</Typography>
               <TextField
                 fullWidth
                 size="small"
@@ -232,9 +226,9 @@ const PropertiesPanel = ({
                 onChange={(e) => handleManifestFieldChange('entry_route', e.target.value)}
                 sx={inputSx}
               />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>Advanced (JSON)</FieldLabel>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography sx={fieldLabelSx}>{ui.fieldAdvancedJson || STUDIO_UI_DEFAULTS.fieldAdvancedJson}</Typography>
               <TextField
                 fullWidth
                 size="small"
@@ -248,27 +242,27 @@ const PropertiesPanel = ({
                 }}
                 sx={{ ...inputSx, '& .MuiOutlinedInput-root': { ...inputSx['& .MuiOutlinedInput-root'], fontFamily: 'monospace', fontSize: '12px' } }}
               />
-            </FieldGroup>
+            </div>
           </>
         )}
 
         {activeTab === 2 && (
-          <FieldGroup>
-            <FieldLabel>Routes</FieldLabel>
+          <div style={{ marginBottom: '16px' }}>
+            <Typography sx={fieldLabelSx}>{ui.tabRoutes || STUDIO_UI_DEFAULTS.tabRoutes}</Typography>
             {appDefinition?.routes?.length > 0 ? (
               appDefinition.routes.map((route, i) => (
-                <Box key={i} sx={{ mb: 1, p: 1, backgroundColor: '#2B2A33', borderRadius: '6px' }}>
-                  <Typography sx={{ color: '#EAEAF0', fontSize: '12px', fontWeight: 500 }}>{route.path || '/'}</Typography>
-                  <Typography sx={{ color: '#9CA3AF', fontSize: '11px' }}>{route.name || 'Unnamed route'}</Typography>
+                <Box key={i} sx={{ mb: 1, p: 1, backgroundColor: theme.inputBackground, borderRadius: '6px' }}>
+                  <Typography sx={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 500 }}>{route.path || '/'}</Typography>
+                  <Typography sx={{ color: theme.textSecondary, fontSize: '11px' }}>{route.name || (ui.unnamedRoute || STUDIO_UI_DEFAULTS.unnamedRoute)}</Typography>
                 </Box>
               ))
             ) : (
-              <Typography sx={{ color: '#6B7280', fontSize: '12px' }}>No routes defined</Typography>
+              <Typography sx={{ color: theme.textMuted, fontSize: '12px' }}>{ui.noRoutes || STUDIO_UI_DEFAULTS.noRoutes}</Typography>
             )}
-          </FieldGroup>
+          </div>
         )}
-      </PanelContent>
-    </PanelContainer>
+      </div>
+    </div>
   );
 };
 

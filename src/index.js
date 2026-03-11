@@ -1,8 +1,8 @@
 // React Components
 export { default as AppRuntimeHostComponent } from './components/app-engine/runtime/AppRuntimeHost.component';
 export { default as AppStudioComponent } from './components/app-engine/studio/AppStudio.component';
-export { default as AppCatalogGridComponent } from './components/app-engine/catalog/AppCatalogGrid.component';
-export { default as AppCatalogCardComponent } from './components/app-engine/catalog/AppCatalogCard.component';
+export { default as AppMarketplaceGridComponent } from './components/app-engine/marketplace/AppMarketplaceGrid.component';
+export { default as AppMarketplaceCardComponent } from './components/app-engine/marketplace/AppMarketplaceCard.component';
 
 // Context + Hooks
 export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/context/AppEngineSDK.context';
@@ -27,3 +27,11 @@ export {
   createEntityRecord,
   deleteEntityRecord,
 } from './services/utils/entityServiceAdapter';
+
+// UI Defaults + Utilities
+export {
+  STUDIO_UI_DEFAULTS,
+  MARKETPLACE_UI_DEFAULTS,
+  RUNTIME_UI_DEFAULTS,
+  mergeDefaults,
+} from './components/app-engine/defaults/appEngine.defaults';

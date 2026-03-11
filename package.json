@@ -21,6 +21,8 @@
   ],
   "scripts": {
     "build": "rollup -c rollup.config.cjs",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
     "version-patch": "npm version patch",
     "version-deploy": "npm publish"
   },
@@ -64,9 +66,18 @@
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
+    "@storybook/addon-essentials": "^8.3.4",
+    "@storybook/addon-interactions": "^8.3.4",
+    "@storybook/addon-links": "^8.3.4",
+    "@storybook/addon-onboarding": "^8.3.4",
+    "@storybook/blocks": "^8.3.4",
+    "@storybook/react": "^8.3.4",
+    "@storybook/react-vite": "^8.3.4",
+    "@storybook/test": "^8.3.4",
     "postcss": "^8.4.38",
     "rollup": "^4.13.2",
     "rollup-plugin-peer-deps-external": "^2.2.4",
-    "rollup-plugin-postcss": "^4.0.2"
+    "rollup-plugin-postcss": "^4.0.2",
+    "storybook": "^8.3.4"
   }
 }

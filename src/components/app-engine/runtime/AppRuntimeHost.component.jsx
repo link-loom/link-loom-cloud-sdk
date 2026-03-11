@@ -6,40 +6,20 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import { RUNTIME_UI_DEFAULTS, mergeDefaults } from '../defaults/appEngine.defaults';
+// Note: Optional SDK UI & Utils dependencies like @mui/material, recharts,
+// and axios are intentionally NOT imported here to avoid bloating the SDK bundle
+// and to prevent Rollup build failures. The host application should provide them
+// globally or pass them through a mechanism if they want apps to use them.
 
-const RuntimeContainer = styled('div')(({ $launchMode }) => ({
-  width: '100%',
-  height: '100%',
-  flex: $launchMode === 'fullscreen' ? 1 : 'none',
-  minHeight: $launchMode === 'fullscreen' ? 0 : '400px',
-  backgroundColor: 'transparent',
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-}));
-
-const LoadingState = styled('div')({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  minHeight: '400px',
-  gap: '16px',
-  color: '#9CA3AF',
-});
-
-const ErrorState = styled('div')({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  minHeight: '400px',
-  gap: '12px',
-  color: '#EF4444',
-  padding: '24px',
-});
+// We will attempt to extract them from the global window object if the host
+// has exposed them, otherwise they will remain undefined in the shim.
+const resolveHostModule = (globalName) => {
+  if (typeof window !== 'undefined' && window[globalName]) {
+    return window[globalName];
+  }
+  return undefined;
+};
 
 const EMPTY_PAYLOAD = {};
 
@@ -58,6 +38,21 @@ const HOST_MODULES = {
   'react-dom': ReactDOM,
   'react-dom/client': ReactDOMClient,
   'react-router-dom': ReactRouterDOM,
+  // Attempt to resolve optional host modules from global scope if provided by host.
+  // The host application (e.g. Sommatic) is responsible for putting these in window
+  // if it wants them to be available to App Engine apps.
+  '@mui/material': resolveHostModule('MuiMaterial') || resolveHostModule('mui'),
+  '@mui/icons-material': resolveHostModule('MuiIconsMaterial'),
+  '@link-loom/react-sdk': resolveHostModule('LinkLoomReactSDK'),
+  '@sommatic/react-sdk': resolveHostModule('SommaticReactSDK'),
+  '@tanstack/react-query': resolveHostModule('ReactQuery'),
+  'react-hook-form': resolveHostModule('ReactHookForm'),
+  'zod': resolveHostModule('Zod'),
+  'axios': resolveHostModule('axios'),
+  'dayjs': resolveHostModule('dayjs'),
+  'luxon': resolveHostModule('luxon'),
+  'recharts': resolveHostModule('recharts'),
+  'react-markdown': resolveHostModule('reactMarkdown')
 };
 
 // Matches both tokenized imports ($$LOOM_RUNTIME$$:react) and bare
@@ -66,7 +61,7 @@ const HOST_MODULES = {
 // like `import "$$LOOM_RUNTIME$$:react"` in addition to named imports.
 // Alternation order: longest prefixes first to avoid substring matches.
 const EXTERNAL_IMPORT_PATTERN =
-  /((?:from|import)\s*)(["'])(\$\$LOOM_RUNTIME\$\$:)?((?:@link-loom\/cloud-sdk|react-router-dom|react-dom|react)(?:\/[^"']*)?)\2/g;
+  /((?:from|import)\s*)(["'])(\$\$LOOM_RUNTIME\$\$:)?((?:@link-loom\/cloud-sdk|@link-loom\/react-sdk|@sommatic\/react-sdk|@mui\/material|@mui\/icons-material|@tanstack\/react-query|react-hook-form|zod|react-router-dom|react-dom|react|axios|dayjs|luxon|recharts|react-markdown)(?:\/[^"']*)?)\2/g;
 
 const buildShimCode = (depKey) => {
   const moduleObj = window[RUNTIME_WINDOW_KEY]?.[depKey];
@@ -146,10 +141,16 @@ const AppRuntimeHost = ({
   inputPayload,
   appSessionService,
   apiBaseUrl = '',
+  ui,
   onClose,
   onSubmitOutput,
   onNavigate,
+  className = '',
+  renderLoading,
+  renderError,
 }) => {
+  const config = mergeDefaults(RUNTIME_UI_DEFAULTS, ui);
+  const theme = config.theme;
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
@@ -322,22 +323,61 @@ const AppRuntimeHost = ({
     };
   }, [openSession]);
 
+  const defaultLoadingContent = (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        minHeight: `${theme.minHeight}px`,
+        gap: '16px',
+        color: theme.textSecondary,
+      }}
+    >
+      <CircularProgress sx={{ color: theme.spinnerColor }} />
+      <Typography sx={{ fontSize: '14px' }}>{config.loadingText}</Typography>
+    </div>
+  );
+
+  const defaultErrorContent = (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        minHeight: `${theme.minHeight}px`,
+        gap: '12px',
+        color: theme.errorColor,
+        padding: '24px',
+      }}
+    >
+      <Typography sx={{ fontSize: '16px', fontWeight: 500 }}>{config.errorTitle}</Typography>
+      <Typography sx={{ fontSize: '13px', color: theme.textSecondary, textAlign: 'center', maxWidth: '400px' }}>
+        {error}
+      </Typography>
+    </div>
+  );
+
   return (
-    <RuntimeContainer $launchMode={launchMode}>
-      {status === 'loading' && (
-        <LoadingState>
-          <CircularProgress sx={{ color: '#7C3AED' }} />
-          <Typography sx={{ fontSize: '14px' }}>Loading app...</Typography>
-        </LoadingState>
-      )}
-      {status === 'error' && (
-        <ErrorState>
-          <Typography sx={{ fontSize: '16px', fontWeight: 500 }}>Failed to load app</Typography>
-          <Typography sx={{ fontSize: '13px', color: '#9CA3AF', textAlign: 'center', maxWidth: '400px' }}>
-            {error}
-          </Typography>
-        </ErrorState>
-      )}
+    <div
+      className={className || undefined}
+      style={{
+        width: '100%',
+        height: '100%',
+        flex: launchMode === 'fullscreen' ? 1 : 'none',
+        minHeight: launchMode === 'fullscreen' ? 0 : `${theme.minHeight}px`,
+        backgroundColor: 'transparent',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {status === 'loading' && (renderLoading ? renderLoading() : defaultLoadingContent)}
+      {status === 'error' && (renderError ? renderError({ error }) : defaultErrorContent)}
       <div
         ref={mountRef}
         style={{
@@ -346,7 +386,7 @@ const AppRuntimeHost = ({
           display: status === 'running' ? 'block' : 'none',
         }}
       />
-    </RuntimeContainer>
+    </div>
   );
 };
 

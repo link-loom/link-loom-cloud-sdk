@@ -14,7 +14,7 @@ export default class AppEngineAppDefinitionService extends BaseApi {
       delete: "/app-engine/definition",
       createWithScaffold: "/app-engine/definition/scaffold/",
       studioPayload: "/app-engine/definition/studio/",
-      catalog: "/app-engine/definition/catalog/",
+      marketplace: "/app-engine/definition/marketplace/",
       fullApp: "/app-engine/definition/full/",
       provision: "/app-engine/definition/provision/",
     };
@@ -30,8 +30,8 @@ export default class AppEngineAppDefinitionService extends BaseApi {
     return super.getByParameters({ queryselector: 'studio', ...payload });
   }
 
-  async getCatalog(payload) {
-    return super.get(payload, { endpoint: this.serviceEndpoints.catalog });
+  async getMarketplace(payload) {
+    return super.get(payload, { endpoint: this.serviceEndpoints.marketplace });
   }
 
   async getFullApp(payload) {
