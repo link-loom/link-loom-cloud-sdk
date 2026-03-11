@@ -1,6 +1,3 @@
-// Node.js Client (service-to-service)
-export { AppEngineClient } from './clients/app-engine.client.js';
-
 // React Components
 export { default as AppRuntimeHostComponent } from './components/app-engine/runtime/AppRuntimeHost.component';
 export { default as AppStudioComponent } from './components/app-engine/studio/AppStudio.component';
@@ -19,3 +16,14 @@ export { default as AppEngineAppFileService } from './services/app-engine/app-fi
 export { default as AppEngineAppBuildService } from './services/app-engine/app-build/app-build.service';
 export { default as AppEngineAppSessionService } from './services/app-engine/app-session/app-session.service';
 export { default as AppEngineAppPreferenceService } from './services/app-engine/app-preference/app-preference.service';
+export { default as AppEngineAppScaffoldService } from './services/app-engine/app-scaffold/app-scaffold.service';
+
+// Adapters
+export {
+  fetchEntityCollection,
+  fetchMultipleEntities,
+  fetchEntityRecord,
+  updateEntityRecord,
+  createEntityRecord,
+  deleteEntityRecord,
+} from './services/utils/entityServiceAdapter';

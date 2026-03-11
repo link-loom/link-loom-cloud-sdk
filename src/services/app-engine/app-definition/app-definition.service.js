@@ -1,48 +1,44 @@
-import BaseApi from '@/services/base/api.service';
+import BaseApi from "../../base/api.service";
 
 export default class AppEngineAppDefinitionService extends BaseApi {
   constructor(args) {
     super(args);
 
-    this.api_key = args?.apiKey || '';
-    this.service_uri = {
-      get: '/app-engine/definition',
-      create: '/app-engine/definition',
-      update: '/app-engine/definition',
-      delete: '/app-engine/definition',
-      createWithScaffold: '/app-engine/definition/scaffold',
-      studioPayload: '/app-engine/definition/studio',
-      catalog: '/app-engine/definition/catalog',
-      fullApp: '/app-engine/definition/full',
-      provision: '/app-engine/definition/provision',
+    this.api_key = args?.apiKey || "";
+    this.serviceEndpoints = {
+      baseUrl:
+        args?.baseUrl || import.meta.env.VITE_LOOM_CLOUD_BACKEND_URL || "",
+      get: "/app-engine/definition/",
+      create: "/app-engine/definition",
+      update: "/app-engine/definition",
+      delete: "/app-engine/definition",
+      createWithScaffold: "/app-engine/definition/scaffold/",
+      studioPayload: "/app-engine/definition/studio/",
+      catalog: "/app-engine/definition/catalog/",
+      fullApp: "/app-engine/definition/full/",
+      provision: "/app-engine/definition/provision/",
     };
-    this.settings = args?.settings || {};
-
-    const baseUrl = args?.baseUrl || import.meta.env.VITE_LOOM_CLOUD_BACKEND_URL || '';
-    if (baseUrl) {
-      this.serviceEndpoints.baseUrlProduction = baseUrl;
-      this.serviceEndpoints.baseUrlDevelopment = baseUrl;
-      this.serviceEndpoints.baseUrlLocal = baseUrl;
-    }
   }
 
   async createWithScaffold(payload) {
-    return super.post(payload, { endpoint: this.service_uri.createWithScaffold });
+    return super.post(payload, {
+      endpoint: this.serviceEndpoints.createWithScaffold,
+    });
   }
 
   async getStudioPayload(payload) {
-    return super.get(payload, { endpoint: this.service_uri.studioPayload });
+    return super.getByParameters({ queryselector: 'studio', ...payload });
   }
 
   async getCatalog(payload) {
-    return super.get(payload, { endpoint: this.service_uri.catalog });
+    return super.get(payload, { endpoint: this.serviceEndpoints.catalog });
   }
 
   async getFullApp(payload) {
-    return super.get(payload, { endpoint: this.service_uri.fullApp });
+    return super.get(payload, { endpoint: this.serviceEndpoints.fullApp });
   }
 
   async provision(payload) {
-    return super.post(payload, { endpoint: this.service_uri.provision });
+    return super.post(payload, { endpoint: this.serviceEndpoints.provision });
   }
 }

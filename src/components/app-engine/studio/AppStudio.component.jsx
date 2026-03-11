@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
+import { updateEntityRecord } from '../../../services/utils/entityServiceAdapter';
 import StudioToolbar from './panels/StudioToolbar.component';
 import FileExplorer from './panels/FileExplorer.component';
 import EditorArea from './panels/EditorArea.component';
@@ -158,7 +159,7 @@ const AppStudio = ({
       }
 
       if (definitionDirtyRef.current && appDefinitionService) {
-        await appDefinitionService.update(appDefinition);
+        await updateEntityRecord({ service: appDefinitionService, payload: appDefinition });
         definitionDirtyRef.current = false;
       }
     } catch (error) {
@@ -177,7 +178,7 @@ const AppStudio = ({
     setIsBottomPanelOpen(true);
 
     try {
-      const response = await appBuildService.build({
+      const response = await appBuildService.buildSingle({
         app_definition_id: appDefinitionId,
         organization_id: appDefinition?.organization_id,
       });
@@ -216,6 +217,10 @@ const AppStudio = ({
     definitionDirtyRef.current = true;
   }, []);
 
+  const handleRunApp = useCallback(() => {
+    if (onRun) onRun(appDefinition);
+  }, [onRun, appDefinition]);
+
   return (
     <StudioContainer>
       <StudioToolbar
@@ -227,7 +232,7 @@ const AppStudio = ({
         onSave={handleSave}
         onBuild={handleBuild}
         onPublish={handlePublish}
-        onRun={onRun}
+        onRun={handleRunApp}
         onToggleProperties={() => setIsPropertiesOpen(!isPropertiesOpen)}
         isPropertiesOpen={isPropertiesOpen}
       />

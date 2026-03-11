@@ -1,64 +1,49 @@
-import axios from 'axios';
+import axios from "axios";
 
 export default class BaseApi {
-  constructor () {
+  constructor(args) {
     this.api_key = null;
     this.client = null;
     this.serviceEndpoints = {
-      baseUrlProduction: process.env.VERIPASS_PRODUCTION_SERVICE_URL,
-      baseUrlDevelopment: process.env.VERIPASS_DEVELOPMENT_SERVICE_URL,
-      baseUrlLocal: process.env.VERIPASS_LOCAL_SERVICE_URL,
-      get: '',
-      create: '',
-      update: '',
-      delete: '',
-      patch: '',
-      put: '',
+      baseUrl: import.meta.env.VITE_APP_BACKEND_URL || "",
+      get: "",
+      create: "",
+      update: "",
+      delete: "",
+      patch: "",
+      put: "",
     };
-    this.settings = {}
+    this.settings = args || {};
   }
 
   /**
    * Initializes and returns an Axios client instance with the necessary headers and configurations.
    *
+   * @param {Object} settings Optional settings to override instance defaults during the request.
    * @returns {Object} Axios client instance.
    */
-  request () {
+  request(settings = null) {
     let headers = {
-      Accept: 'application/json',
+      Accept: "application/json",
     };
 
     if (this.api_key) {
-      headers['api-key'] = this.api_key;
+      headers["api-key"] = this.api_key;
     }
+
+    const mergedSettings = { ...this.settings, ...settings };
 
     this.client = axios.create({
       baseURL: this.api_url,
-      timeout: 31000,
+      timeout: mergedSettings?.timeout || 31000,
       headers: headers,
     });
 
     return this.client;
   }
 
-  urlBuilder ({ endpoint }) {
-    const environment = this.settings?.environment || 'production';
-    let baseUrl = '';
-
-    switch (environment) {
-      case 'local':
-        baseUrl = this.serviceEndpoints.baseUrlLocal;
-        break;
-      case 'development':
-        baseUrl = this.serviceEndpoints.baseUrlDevelopment;
-        break;
-      case 'production':
-      default:
-        baseUrl = this.serviceEndpoints.baseUrlProduction
-        break;
-    }
-
-    return `${baseUrl}${endpoint}`;
+  urlBuilder({ endpoint }) {
+    return `${this.serviceEndpoints.baseUrl}${endpoint}`;
   }
 
   /**
@@ -68,23 +53,23 @@ export default class BaseApi {
    * @param {string} [prefix] Prefix for nested properties in the object.
    * @returns {string} Serialized query string.
    */
-  serializerOjectToQueryString (obj, prefix) {
-    if (obj && typeof obj === 'object') {
+  serializerOjectToQueryString(obj, prefix) {
+    if (obj && typeof obj === "object") {
       const serializedArr = [];
       let key = {};
 
       for (key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          const k = prefix ? prefix + '[' + key + ']' : key;
+          const k = prefix ? prefix + "[" + key + "]" : key;
           const value = obj[key] || null;
           serializedArr.push(
-            value !== null && typeof value === 'object'
+            value !== null && typeof value === "object"
               ? this.serializerOjectToQueryString(value, k)
-              : encodeURIComponent(k) + '=' + encodeURIComponent(value),
+              : encodeURIComponent(k) + "=" + encodeURIComponent(value),
           );
         }
       }
-      return serializedArr.join('&');
+      return serializedArr.join("&");
     }
   }
 
@@ -94,12 +79,12 @@ export default class BaseApi {
    * @param {Object} obj The object to be converted.
    * @returns {string} Query string starting with '?' or an empty string if the object is not valid.
    */
-  objectToQueryString (obj) {
-    if (obj && typeof obj === 'object') {
+  objectToQueryString(obj) {
+    if (obj && typeof obj === "object") {
       const result = this.serializerOjectToQueryString(obj);
       return `?${result}`;
     } else {
-      return '';
+      return "";
     }
   }
 
@@ -110,22 +95,24 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns an object to be processed
    */
-  async getByParameters (payload, settings) {
+  async getByParameters(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
       if (!payload.queryselector) {
-        console.error('Provide a query selector to query');
+        console.error("Provide a query selector to query");
         return null;
       }
 
       const parameters = this.objectToQueryString(payload);
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.get });
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.get,
+      });
       const url = `${endpoint}${payload.queryselector}${parameters}`;
 
-      const result = await this.request().get(url);
+      const result = await this.request(settings).get(url);
 
       return result.data;
     } catch (error) {
@@ -140,14 +127,16 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns
    */
-  async create (payload, settings) {
+  async create(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.create });
-      const result = await this.request().post(endpoint, payload);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.create,
+      });
+      const result = await this.request(settings).post(endpoint, payload);
 
       return result.data;
     } catch (error) {
@@ -162,14 +151,16 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns
    */
-  async update (payload, settings) {
+  async update(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.update });
-      const result = await this.request().patch(endpoint, payload);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.update,
+      });
+      const result = await this.request(settings).patch(endpoint, payload);
 
       return result.data;
     } catch (error) {
@@ -184,19 +175,18 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns
    */
-  async delete (payload, settings) {
+  async delete(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.delete });
-      const result = await this.request().delete(endpoint,
-        {
-          data: payload,
-        },
-      );
-
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.delete,
+      });
+      const result = await this.request(settings).delete(endpoint, {
+        data: payload,
+      });
       return result.data;
     } catch (error) {
       console.error(error);
@@ -210,14 +200,16 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns
    */
-  async post (payload, settings) {
+  async post(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.post });
-      const result = await this.request().post(endpoint, payload);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.post,
+      });
+      const result = await this.request(settings).post(endpoint, payload);
 
       return result.data;
     } catch (error) {
@@ -233,14 +225,16 @@ export default class BaseApi {
    * @returns
    */
 
-  async put (payload, settings) {
+  async put(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.put });
-      const result = await this.request().put(endpoint, payload);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.put,
+      });
+      const result = await this.request(settings).put(endpoint, payload);
 
       return result.data;
     } catch (error) {
@@ -255,14 +249,16 @@ export default class BaseApi {
    * @param {*} settings Configuration settings for the request
    * @returns
    */
-  async patch (payload, settings) {
+  async patch(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.patch });
-      const result = await this.request().patch(endpoint, payload);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.patch,
+      });
+      const result = await this.request(settings).patch(endpoint, payload);
 
       return result.data;
     } catch (error) {
@@ -277,15 +273,19 @@ export default class BaseApi {
    * @param {*} endpoint
    * @returns
    */
-  async get (payload, settings) {
+  async get(payload, settings) {
     try {
       if (!payload) {
         return null;
       }
 
       const parameters = this.objectToQueryString(payload);
-      const endpoint = this.urlBuilder({ endpoint: settings?.endpoint || this.serviceEndpoints.post });
-      const result = await this.request().get(`${endpoint}${parameters}`);
+      const endpoint = this.urlBuilder({
+        endpoint: settings?.endpoint || this.serviceEndpoints.get,
+      });
+      const result = await this.request(settings).get(
+        `${endpoint}${parameters}`,
+      );
 
       return result.data;
     } catch (error) {

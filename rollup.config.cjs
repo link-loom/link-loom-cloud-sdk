@@ -58,7 +58,9 @@ module.exports = {
   ],
   external: [
     'react',
+    'react/jsx-runtime',
     'react-dom',
+    'react-dom/client',
     'react-router-dom',
     '@link-loom/react-sdk',
     '@mui/material',

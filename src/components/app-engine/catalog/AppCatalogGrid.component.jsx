@@ -1,31 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
-import CircularProgress from '@mui/material/CircularProgress';
+import { fetchMultipleEntities } from '../../../services/utils/entityServiceAdapter';
 import AppCatalogCard from './AppCatalogCard.component';
 
-const GridContainer = styled('div')({
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-  gap: '16px',
+const StyledTabs = styled(Tabs)({
+  minHeight: '36px',
+  '& .MuiTab-root': {
+    minHeight: '36px',
+    textTransform: 'none',
+    fontSize: '13px',
+  },
+  '& .MuiTabs-indicator': {
+    height: '2px',
+  },
 });
 
-const EmptyState = styled('div')({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '64px 24px',
-  color: '#9CA3AF',
-  gap: '16px',
+const StyledTab = styled(Tab)({
+  minHeight: '36px',
 });
 
 const AppCatalogGrid = ({
@@ -40,63 +38,59 @@ const AppCatalogGrid = ({
   onPreferencesLoaded,
   organizationId,
 }) => {
+  // Models
   const [apps, setApps] = useState([]);
   const [preferences, setPreferences] = useState({});
+
+  // UI states
   const [searchQuery, setSearchQuery] = useState('');
   const [kindFilter, setKindFilter] = useState('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const loadApps = useCallback(async () => {
+  const initializeComponent = async () => {
     if (!appDefinitionService) return;
 
-    setIsLoading(true);
+    const [definitionsResponse, preferencesResponse] = await fetchMultipleEntities([
+      {
+        service: appDefinitionService,
+        payload: {
+          queryselector: organizationId ? 'organization-id' : 'all',
+          exclude_status: 'deleted',
+          query: { search: organizationId || '' },
+        },
+      },
+      {
+        service: appPreferenceService,
+        payload: {
+          queryselector: 'all',
+          exclude_status: 'deleted',
+        },
+      },
+    ]);
 
-    try {
-      const queryParams = { queryselector: 'all', exclude_status: 'deleted' };
+    setLoading(false);
 
-      if (organizationId) {
-        queryParams.queryselector = 'organization-id';
-        queryParams.search = organizationId;
-      }
-
-      const response = await appDefinitionService.get(queryParams);
-
-      if (response?.result?.items) {
-        setApps(response.result.items);
-      }
-    } catch (error) {
-      console.error('Failed to load apps:', error);
-    } finally {
-      setIsLoading(false);
+    if (definitionsResponse?.result?.items) {
+      setApps(definitionsResponse.result.items);
     }
-  }, [appDefinitionService, organizationId]);
 
-  const loadPreferences = useCallback(async () => {
-    if (!appPreferenceService) return;
-
-    try {
-      const response = await appPreferenceService.get({ queryselector: 'all', exclude_status: 'deleted' });
-
-      if (response?.result?.items) {
-        const prefsMap = {};
-        for (const pref of response.result.items) {
-          prefsMap[pref.app_definition_id] = pref;
-        }
-        setPreferences(prefsMap);
-
-        if (onPreferencesLoaded) {
-          onPreferencesLoaded(prefsMap);
-        }
+    if (preferencesResponse?.result?.items) {
+      const prefsMap = {};
+      for (const pref of preferencesResponse.result.items) {
+        prefsMap[pref.app_definition_id] = pref;
       }
-    } catch (error) {
-      console.error('Failed to load preferences:', error);
+      setPreferences(prefsMap);
+
+      if (onPreferencesLoaded) {
+        onPreferencesLoaded(prefsMap);
+      }
     }
-  }, [appPreferenceService, onPreferencesLoaded]);
+  };
 
   useEffect(() => {
-    loadApps();
-    loadPreferences();
-  }, [loadApps, loadPreferences]);
+    setLoading(true);
+    initializeComponent();
+  }, []);
 
   const filteredApps = apps.filter((app) => {
     const appKind = app.manifest?.kind || 'workspace';
@@ -107,6 +101,7 @@ const AppCatalogGrid = ({
     if (kindFilter === 'all' && launcherVisibility === 'system') return false;
 
     if (!searchQuery) return true;
+
     const query = searchQuery.toLowerCase();
     return (
       app.name?.toLowerCase().includes(query) ||
@@ -117,144 +112,130 @@ const AppCatalogGrid = ({
   });
 
   const handleCreateApp = async () => {
-    if (onCreateApp) {
-      await onCreateApp();
-      loadApps();
-    }
+    if (!onCreateApp) return;
+
+    await onCreateApp();
+    initializeComponent();
   };
 
   const handleDeleteApp = async (app) => {
-    if (onDeleteApp) {
-      await onDeleteApp(app);
-      loadApps();
-    }
+    if (!onDeleteApp) return;
+
+    await onDeleteApp(app);
+    initializeComponent();
   };
 
   const handlePinApp = async (app, isPinned) => {
-    if (onPinApp) {
-      await onPinApp(app, isPinned);
-      loadPreferences();
-    }
+    if (!onPinApp) return;
+
+    await onPinApp(app, isPinned);
+    initializeComponent();
   };
 
   const handleFavoriteApp = async (app, isFavorite) => {
-    if (onFavoriteApp) {
-      await onFavoriteApp(app, isFavorite);
-      loadPreferences();
-    }
+    if (!onFavoriteApp) return;
+
+    await onFavoriteApp(app, isFavorite);
+    initializeComponent();
   };
 
   return (
-    <Box>
-      <Tabs
-        value={kindFilter}
-        onChange={(e, value) => setKindFilter(value)}
-        sx={{
-          mb: 2,
-          minHeight: '36px',
-          '& .MuiTab-root': {
-            minHeight: '36px',
-            textTransform: 'none',
-            color: '#9CA3AF',
-            fontSize: '13px',
-            '&.Mui-selected': { color: '#A78BFA' },
-          },
-          '& .MuiTabs-indicator': { backgroundColor: '#7C3AED' },
-        }}
-      >
-        <Tab label="All Apps" value="all" />
-        <Tab label="Workspaces" value="workspace" />
-        <Tab label="Utilities" value="utility" />
-      </Tabs>
-
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <TextField
-          placeholder="Search apps..."
-          size="small"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#6B7280' }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            width: '320px',
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: '#1F1E26',
-              color: '#EAEAF0',
-              borderRadius: '8px',
-              '& fieldset': { borderColor: '#6B728040' },
-              '&:hover fieldset': { borderColor: '#7C3AED' },
-              '&.Mui-focused fieldset': { borderColor: '#7C3AED' },
-            },
-          }}
-        />
-        {onCreateApp && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreateApp}
-            sx={{
-              backgroundColor: '#7C3AED',
-              '&:hover': { backgroundColor: '#6D28D9' },
-              textTransform: 'none',
-              borderRadius: '8px',
-            }}
-          >
-            New App
-          </Button>
-        )}
-      </Box>
-
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress sx={{ color: '#7C3AED' }} />
-        </Box>
-      ) : filteredApps.length === 0 ? (
-        <EmptyState>
-          <Typography sx={{ fontSize: '16px', fontWeight: 500 }}>
-            {searchQuery ? 'No apps match your search' : 'No apps yet'}
-          </Typography>
-          <Typography sx={{ fontSize: '13px' }}>
-            {searchQuery ? 'Try a different search term' : 'Create your first app to get started'}
-          </Typography>
-          {!searchQuery && onCreateApp && (
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={handleCreateApp}
-              sx={{
-                borderColor: '#7C3AED',
-                color: '#7C3AED',
-                '&:hover': { borderColor: '#6D28D9', backgroundColor: '#7C3AED10' },
-                textTransform: 'none',
-                mt: 1,
-              }}
-            >
-              Create App
-            </Button>
+    <article className="card shadow">
+      <section className="card-body">
+        <header className="d-flex flex-row justify-content-between align-items-start">
+          <section>
+            <h4 className="mt-0 header-title">App Catalog</h4>
+            <p className="text-muted font-14 mb-3">Browse, manage and launch your apps</p>
+          </section>
+          {onCreateApp && (
+            <section className="align-items-sm-baseline d-flex">
+              <button
+                className="btn btn-dark"
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleCreateApp();
+                }}
+              >
+                <AddIcon className="me-1" fontSize="small" /> New App
+              </button>
+            </section>
           )}
-        </EmptyState>
-      ) : (
-        <GridContainer>
-          {filteredApps.map((app) => (
-            <AppCatalogCard
-              key={app.id}
-              app={app}
-              preference={preferences[app.id]}
-              onOpen={onOpenApp}
-              onEdit={onEditApp}
-              onDelete={handleDeleteApp}
-              onPin={onPinApp ? handlePinApp : undefined}
-              onFavorite={onFavoriteApp ? handleFavoriteApp : undefined}
+        </header>
+
+        <section className="content">
+          <section className="filters mb-3">
+            <StyledTabs
+              value={kindFilter}
+              onChange={(e, value) => setKindFilter(value)}
+              className="mb-3"
+            >
+              <StyledTab label="All Apps" value="all" />
+              <StyledTab label="Workspaces" value="workspace" />
+              <StyledTab label="Utilities" value="utility" />
+            </StyledTabs>
+
+            <TextField
+              placeholder="Search apps..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" className="text-muted" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: '320px' }}
             />
-          ))}
-        </GridContainer>
-      )}
-    </Box>
+          </section>
+
+          {loading ? (
+            <div className="d-flex justify-content-center py-5">
+              <CircularProgress size={32} />
+            </div>
+          ) : filteredApps.length === 0 ? (
+            <div className="text-center py-5">
+              <p className="text-muted mb-1">
+                {searchQuery ? 'No apps match your search' : 'No apps yet'}
+              </p>
+              <p className="text-muted small">
+                {searchQuery
+                  ? 'Try a different search term'
+                  : 'Create your first app to get started'}
+              </p>
+              {!searchQuery && onCreateApp && (
+                <button
+                  className="btn btn-outline-dark btn-sm mt-2"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    handleCreateApp();
+                  }}
+                >
+                  <AddIcon className="me-1" fontSize="small" /> Create App
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="row g-3">
+              {filteredApps.map((app) => (
+                <div className="col-12 col-sm-6 col-md-4 col-xl-3" key={app.id}>
+                  <AppCatalogCard
+                    app={app}
+                    preference={preferences[app.id]}
+                    onOpen={onOpenApp}
+                    onEdit={onEditApp}
+                    onDelete={handleDeleteApp}
+                    onPin={onPinApp ? handlePinApp : undefined}
+                    onFavorite={onFavoriteApp ? handleFavoriteApp : undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </section>
+    </article>
   );
 };
 
