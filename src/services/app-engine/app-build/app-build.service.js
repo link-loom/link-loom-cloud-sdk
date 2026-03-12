@@ -15,16 +15,23 @@ export default class AppEngineAppBuildService extends BaseApi {
   }
 
   async buildSingle(payload) {
-    return super.post(payload, { endpoint: this.serviceEndpoints.buildSingle });
+    return super.post(payload, {
+      endpoint: this.serviceEndpoints.buildSingle,
+      timeout: 180000,
+    });
   }
 
   async buildAll(payload) {
-    return super.post(payload, { endpoint: this.serviceEndpoints.buildAll });
+    return super.post(payload, {
+      endpoint: this.serviceEndpoints.buildAll,
+      timeout: 180000,
+    });
   }
 
   async buildAndPublish(payload) {
     return super.post(payload, {
       endpoint: this.serviceEndpoints.buildAndPublish,
+      timeout: 180000,
     });
   }
 }

@@ -227,6 +227,27 @@ const PropertiesPanel = ({
                 sx={inputSx}
               />
             </div>
+            {appDefinition?.manifest?.allowed_dependencies?.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <Typography sx={fieldLabelSx}>Runtime Dependencies</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {appDefinition.manifest.allowed_dependencies.map((dep, i) => (
+                    <Chip
+                      key={i}
+                      label={dep}
+                      size="small"
+                      sx={{
+                        backgroundColor: theme.brandPrimaryHighlight,
+                        color: theme.brandPrimarySubtle,
+                        fontSize: '10px',
+                        height: '22px',
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </div>
+            )}
             <div style={{ marginBottom: '16px' }}>
               <Typography sx={fieldLabelSx}>{ui.fieldAdvancedJson || STUDIO_UI_DEFAULTS.fieldAdvancedJson}</Typography>
               <TextField

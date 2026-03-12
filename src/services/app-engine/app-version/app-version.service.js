@@ -18,10 +18,16 @@ export default class AppEngineAppVersionService extends BaseApi {
   }
 
   async publish(payload) {
-    return super.post(payload, { endpoint: this.serviceEndpoints.publish });
+    return super.post(payload, {
+      endpoint: this.serviceEndpoints.publish,
+      timeout: 180000,
+    });
   }
 
   async activate(payload) {
-    return super.patch(payload, { endpoint: this.serviceEndpoints.activate });
+    return super.patch(payload, {
+      endpoint: this.serviceEndpoints.activate,
+      timeout: 60000,
+    });
   }
 }

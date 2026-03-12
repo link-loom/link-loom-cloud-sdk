@@ -16,7 +16,7 @@ export default class AppEngineAppDefinitionService extends BaseApi {
       studioPayload: "/app-engine/definition/studio/",
       marketplace: "/app-engine/definition/marketplace/",
       fullApp: "/app-engine/definition/full/",
-      provision: "/app-engine/definition/provision/",
+      provision: "/app-engine/provisioning/seed-official-apps",
     };
   }
 

@@ -159,6 +159,7 @@ const AppRuntimeHost = ({
   const rootRef = useRef(null);
   const blobUrlRef = useRef(null);
   const shimBlobUrlsRef = useRef([]);
+  const styleElementsRef = useRef([]);
   const inputPayloadRef = useRef(inputPayload || EMPTY_PAYLOAD);
   inputPayloadRef.current = inputPayload || EMPTY_PAYLOAD;
 
@@ -202,6 +203,17 @@ const AppRuntimeHost = ({
 
       if (!entryFile || !buildArtifact[entryFile]?.content) {
         throw new Error('No entry file found in build artifacts');
+      }
+
+      const cssFiles = Object.keys(buildArtifact).filter((k) => k.endsWith('.css'));
+      for (const cssFile of cssFiles) {
+        if (buildArtifact[cssFile]?.content) {
+          const style = document.createElement('style');
+          style.setAttribute('data-loom-app', appSlug || 'unknown');
+          style.textContent = buildArtifact[cssFile].content;
+          document.head.appendChild(style);
+          styleElementsRef.current.push(style);
+        }
       }
 
       const rawCode = buildArtifact[entryFile].content;
@@ -320,6 +332,10 @@ const AppRuntimeHost = ({
         URL.revokeObjectURL(url);
       }
       shimBlobUrlsRef.current = [];
+      for (const styleEl of styleElementsRef.current) {
+        styleEl.remove();
+      }
+      styleElementsRef.current = [];
     };
   }, [openSession]);
 
