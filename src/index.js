@@ -22,7 +22,6 @@ export { default as AppEngineAppScaffoldService } from './services/app-engine/ap
 export {
   fetchEntityCollection,
   fetchMultipleEntities,
-  fetchEntityRecord,
   updateEntityRecord,
   createEntityRecord,
   deleteEntityRecord,

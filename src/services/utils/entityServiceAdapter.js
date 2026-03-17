@@ -54,32 +54,6 @@ export async function fetchMultipleEntities(list = []) {
 }
 
 /**
- * Adapter to fetch a single entity by ID using a given service instance.
- */
-export async function fetchEntityRecord({ service, payload }) {
-  try {
-    const { id } = payload;
-
-    if (typeof service.getById === 'function') {
-      return await service.getById(id);
-    }
-
-    if (typeof service.getByParameters === 'function') {
-      return await service.getByParameters({
-        queryselector: 'id',
-        search: id,
-      });
-    }
-
-    console.error('[fetchEntityRecord] Service does not implement getById or getByParameters');
-    return null;
-  } catch (error) {
-    console.error('[fetchEntityRecord] Error loading entity', error);
-    return null;
-  }
-}
-
-/**
  * Adapter to update an existing entity using a given service instance.
  */
 export async function updateEntityRecord({ service, payload }) {
