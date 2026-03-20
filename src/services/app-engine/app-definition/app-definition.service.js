@@ -16,7 +16,6 @@ export default class AppEngineAppDefinitionService extends BaseApi {
       studioPayload: "/app-engine/definition/studio/",
       marketplace: "/app-engine/definition/marketplace/",
       fullApp: "/app-engine/definition/full/",
-      provision: "/app-engine/provisioning/seed-official-apps",
     };
   }
 
@@ -36,9 +35,5 @@ export default class AppEngineAppDefinitionService extends BaseApi {
 
   async getFullApp(payload) {
     return super.get(payload, { endpoint: this.serviceEndpoints.fullApp });
-  }
-
-  async provision(payload) {
-    return super.post(payload, { endpoint: this.serviceEndpoints.provision });
   }
 }
