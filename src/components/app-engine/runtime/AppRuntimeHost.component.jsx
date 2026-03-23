@@ -32,36 +32,65 @@ const EMPTY_PAYLOAD = {};
 
 const RUNTIME_WINDOW_KEY = '__LOOM_RUNTIME__';
 
-const HOST_MODULES = {
+// Core modules that the SDK bundles directly (always available).
+const CORE_MODULES = {
   'react': React,
   'react/jsx-runtime': ReactJSXRuntime,
   'react-dom': ReactDOM,
   'react-dom/client': ReactDOMClient,
   'react-router-dom': ReactRouterDOM,
-  // Attempt to resolve optional host modules from global scope if provided by host.
-  // The host application (e.g. Sommatic) is responsible for putting these in window
-  // if it wants them to be available to App Engine apps.
-  '@mui/material': resolveHostModule('MuiMaterial') || resolveHostModule('mui'),
-  '@mui/icons-material': resolveHostModule('MuiIconsMaterial'),
-  '@link-loom/react-sdk': resolveHostModule('LinkLoomReactSDK'),
-  '@sommatic/react-sdk': resolveHostModule('SommaticReactSDK'),
-  '@tanstack/react-query': resolveHostModule('ReactQuery'),
-  'react-hook-form': resolveHostModule('ReactHookForm'),
-  'zod': resolveHostModule('Zod'),
-  'axios': resolveHostModule('axios'),
-  'dayjs': resolveHostModule('dayjs'),
-  'luxon': resolveHostModule('luxon'),
-  'recharts': resolveHostModule('recharts'),
-  'react-markdown': resolveHostModule('reactMarkdown')
 };
 
-// Matches both tokenized imports ($$LOOM_RUNTIME$$:react) and bare
-// specifiers (react) for backward compatibility with pre-token builds.
-// Captures the keyword (from or import) to handle side-effect imports
-// like `import "$$LOOM_RUNTIME$$:react"` in addition to named imports.
-// Alternation order: longest prefixes first to avoid substring matches.
-const EXTERNAL_IMPORT_PATTERN =
-  /((?:from|import)\s*)(["'])(\$\$LOOM_RUNTIME\$\$:)?((?:@link-loom\/cloud-sdk|@link-loom\/react-sdk|@sommatic\/react-sdk|@mui\/material|@mui\/icons-material|@tanstack\/react-query|react-hook-form|zod|react-router-dom|react-dom|react|axios|dayjs|luxon|recharts|react-markdown)(?:\/[^"']*)?)\2/g;
+// Host-provided modules. The host application registers additional packages
+// in window.__LOOM_RUNTIME__ via its own setup file (e.g. app-engine-runtime.js).
+// The SDK does NOT need to know about these packages — the host decides what to expose.
+const HOST_MODULES = {
+  ...CORE_MODULES,
+};
+
+// Merge any modules the host has already registered in __LOOM_RUNTIME__
+// BEFORE the app loads. This allows hosts to expose arbitrary packages
+// without modifying the SDK.
+if (typeof window !== 'undefined' && window[RUNTIME_WINDOW_KEY]) {
+  for (const [key, mod] of Object.entries(window[RUNTIME_WINDOW_KEY])) {
+    if (!HOST_MODULES[key]) {
+      HOST_MODULES[key] = mod;
+    }
+  }
+}
+
+// Matches tokenized imports: $$LOOM_RUNTIME$$:package-name
+// This pattern matches ANY package name after the token prefix,
+// so the SDK does not need to be updated when new packages are added by the host.
+const TOKENIZED_IMPORT_PATTERN =
+  /((?:from|import)\s*)(["'])\$\$LOOM_RUNTIME\$\$:([^"']+)\2/g;
+
+// Matches bare specifiers for backward compatibility with pre-token builds.
+// Only matches packages registered in HOST_MODULES or __LOOM_RUNTIME__.
+const buildBareSpecifierPattern = () => {
+  const allKeys = new Set([
+    ...Object.keys(CORE_MODULES),
+    ...Object.keys(HOST_MODULES),
+    ...(typeof window !== 'undefined' && window[RUNTIME_WINDOW_KEY]
+      ? Object.keys(window[RUNTIME_WINDOW_KEY])
+      : []),
+  ]);
+
+  if (allKeys.size === 0) return null;
+
+  // Sort by length descending to avoid substring matches
+  const escaped = Array.from(allKeys)
+    .sort((a, b) => b.length - a.length)
+    .map((k) => k.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&'));
+
+  return new RegExp(
+    `((?:from|import)\\s*)(["'])(${escaped.join('|')})(?:\\/[^"']*)?(\\2)`,
+    'g',
+  );
+};
+
+// Legacy combined pattern for backward compat (will be built dynamically)
+let EXTERNAL_IMPORT_PATTERN = null;
 
 const buildShimCode = (depKey) => {
   const moduleObj = window[RUNTIME_WINDOW_KEY]?.[depKey];
@@ -97,8 +126,11 @@ const prepareRuntimeCode = (rawCode) => {
     window[RUNTIME_WINDOW_KEY] = {};
   }
 
+  // Merge core + host-registered modules into the runtime registry
   for (const [key, mod] of Object.entries(HOST_MODULES)) {
-    window[RUNTIME_WINDOW_KEY][key] = mod;
+    if (!window[RUNTIME_WINDOW_KEY][key]) {
+      window[RUNTIME_WINDOW_KEY][key] = mod;
+    }
   }
 
   const shimUrls = {};
@@ -121,13 +153,26 @@ const prepareRuntimeCode = (rawCode) => {
     return url;
   };
 
-  const processedCode = rawCode.replace(
-    EXTERNAL_IMPORT_PATTERN,
-    (_match, keyword, quote, _token, depKey) => {
+  // 1. Replace tokenized imports ($$LOOM_RUNTIME$$:package) — matches ANY package
+  let processedCode = rawCode.replace(
+    TOKENIZED_IMPORT_PATTERN,
+    (_match, keyword, quote, depKey) => {
       const shimUrl = getOrCreateShim(depKey);
       return `${keyword}${quote}${shimUrl}${quote}`;
     },
   );
+
+  // 2. Replace bare specifiers for backward compatibility
+  const barePattern = buildBareSpecifierPattern();
+  if (barePattern) {
+    processedCode = processedCode.replace(
+      barePattern,
+      (_match, keyword, quote, depKey, endQuote) => {
+        const shimUrl = getOrCreateShim(depKey);
+        return `${keyword}${quote}${shimUrl}${endQuote}`;
+      },
+    );
+  }
 
   return { processedCode, blobUrls };
 };
