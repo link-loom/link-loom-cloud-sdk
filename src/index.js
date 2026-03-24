@@ -27,6 +27,11 @@ export {
   deleteEntityRecord,
 } from './services/utils/entityServiceAdapter';
 
+// Shared UI Components + Utilities
+export { default as PinnedAppsWidget } from './components/app-engine/PinnedAppsWidget.component';
+export { default as DynamicMuiIcon } from './components/app-engine/DynamicMuiIcon.component';
+export { getCategoryIcon, getCategoryTint } from './components/app-engine/categoryIcon.util';
+
 // UI Defaults + Utilities
 export {
   STUDIO_UI_DEFAULTS,
