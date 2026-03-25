@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -12,17 +12,46 @@ import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
+function parseRoutesFromFileTree(fileTree, openFiles) {
+  const isAppJsx = (path) => path === '/src/app.jsx' || path === 'src/app.jsx' || (path || '').endsWith('/app.jsx') || (path || '').endsWith('app.jsx');
+  const appFile = (openFiles || []).find((f) => isAppJsx(f.path));
+  const appFileFromTree = !appFile ? (fileTree || []).find((f) => isAppJsx(f.path) && f.content) : null;
+  const content = appFile?.content || appFileFromTree?.content;
+
+  if (!content) return [];
+
+  const routes = [];
+  const routeRegex = /['"](\/?[^'"]*)['"]\s*:\s*([A-Za-z]\w*)/g;
+  const routeBlockMatch = content.match(/(?:const|let|var)\s+ROUTES\s*=\s*\{([^}]+)\}/s);
+
+  if (routeBlockMatch) {
+    let match;
+    while ((match = routeRegex.exec(routeBlockMatch[1])) !== null) {
+      const routePath = match[1].startsWith('/') ? match[1] : '/' + match[1];
+      routes.push({ path: routePath, name: match[2] });
+    }
+  }
+
+  return routes;
+}
+
 const PropertiesPanel = ({
   isOpen = true,
   onClose,
   appDefinition,
   onUpdateDefinition,
+  fileTree,
+  openFiles,
+  latestVersion,
+  buildStatus,
+  hasBuild,
   ui = STUDIO_UI_DEFAULTS,
 }) => {
   const theme = ui.theme || STUDIO_UI_DEFAULTS.theme;
   const panelWidth = theme.propertiesPanelWidth || STUDIO_UI_DEFAULTS.theme.propertiesPanelWidth;
 
   const [activeTab, setActiveTab] = useState(0);
+  const parsedRoutes = useMemo(() => parseRoutesFromFileTree(fileTree, openFiles), [fileTree, openFiles]);
 
   const handleFieldChange = (field, value) => {
     if (onUpdateDefinition) {
@@ -73,34 +102,23 @@ const PropertiesPanel = ({
     <div
       style={{
         height: '100%',
-        width: isOpen ? `${panelWidth}px` : '0px',
-        minWidth: isOpen ? `${panelWidth}px` : '0px',
         backgroundColor: theme.panelBackground,
-        borderLeft: isOpen ? `1px solid ${theme.border}` : 'none',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        transition: 'width 0.2s, min-width 0.2s',
       }}
     >
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
           padding: '8px 12px',
-          borderBottom: `1px solid ${theme.border}`,
           minHeight: '36px',
         }}
       >
-        <Typography sx={{ color: theme.textSecondary, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <Typography sx={{ color: theme.textMuted, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {ui.propertiesTitle || STUDIO_UI_DEFAULTS.propertiesTitle}
         </Typography>
-        {onClose && (
-          <IconButton size="small" onClick={onClose} sx={{ color: theme.textMuted, padding: '2px' }}>
-            <ChevronLeftIcon sx={{ fontSize: 16, transform: 'rotate(180deg)' }} />
-          </IconButton>
-        )}
       </div>
 
       <Tabs
@@ -153,6 +171,49 @@ const PropertiesPanel = ({
                 </Box>
               </div>
             )}
+
+            <div style={{ marginTop: '8px', padding: '12px', borderRadius: '8px', backgroundColor: `${theme.surface}`, border: `1px solid ${theme.border}` }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>
+                Build Status
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', mb: latestVersion ? 1 : 0 }}>
+                <Chip
+                  label={
+                    buildStatus === 'building' ? 'Building...' :
+                    buildStatus === 'success' ? 'Built' :
+                    buildStatus === 'failed' ? 'Failed' :
+                    hasBuild ? 'Built' : 'No build'
+                  }
+                  size="small"
+                  sx={{
+                    fontSize: '11px',
+                    height: '22px',
+                    backgroundColor:
+                      buildStatus === 'building' ? `${theme.brandPrimary}20` :
+                      buildStatus === 'success' || hasBuild ? `${theme.success}20` :
+                      buildStatus === 'failed' ? `${theme.error}20` :
+                      `${theme.textMuted}20`,
+                    color:
+                      buildStatus === 'building' ? theme.brandPrimary :
+                      buildStatus === 'success' || hasBuild ? theme.success :
+                      buildStatus === 'failed' ? theme.error :
+                      theme.textMuted,
+                  }}
+                />
+              </Box>
+              {latestVersion && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography sx={{ fontSize: '11px', color: theme.textMuted }}>
+                    Published: v{latestVersion.version || latestVersion.id?.slice(-6)}
+                  </Typography>
+                  {latestVersion.created_at && (
+                    <Typography sx={{ fontSize: '10px', color: theme.textMuted, opacity: 0.7 }}>
+                      {new Date(latestVersion.created_at).toLocaleDateString()}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </div>
           </>
         )}
 
@@ -270,11 +331,11 @@ const PropertiesPanel = ({
         {activeTab === 2 && (
           <div style={{ marginBottom: '16px' }}>
             <Typography sx={fieldLabelSx}>{ui.tabRoutes || STUDIO_UI_DEFAULTS.tabRoutes}</Typography>
-            {appDefinition?.routes?.length > 0 ? (
-              appDefinition.routes.map((route, i) => (
+            {parsedRoutes.length > 0 ? (
+              parsedRoutes.map((route, i) => (
                 <Box key={i} sx={{ mb: 1, p: 1, backgroundColor: theme.inputBackground, borderRadius: '6px' }}>
-                  <Typography sx={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 500 }}>{route.path || '/'}</Typography>
-                  <Typography sx={{ color: theme.textSecondary, fontSize: '11px' }}>{route.name || (ui.unnamedRoute || STUDIO_UI_DEFAULTS.unnamedRoute)}</Typography>
+                  <Typography sx={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 500 }}>{route.path}</Typography>
+                  <Typography sx={{ color: theme.textSecondary, fontSize: '11px' }}>{route.name}</Typography>
                 </Box>
               ))
             ) : (

@@ -14,6 +14,7 @@ const EditorArea = ({
   onTabChange,
   onTabClose,
   onContentChange,
+  editorTheme,
   ui = STUDIO_UI_DEFAULTS,
 }) => {
   const theme = ui.theme || STUDIO_UI_DEFAULTS.theme;
@@ -107,7 +108,7 @@ const EditorArea = ({
                 language={getLanguage(activeFile.path)}
                 value={activeFile.content || ''}
                 onChange={handleEditorChange}
-                theme={editorOptions.theme || 'vs-dark'}
+                theme={editorTheme || editorOptions.theme || 'vs-dark'}
                 options={{
                   minimap: editorOptions.minimap,
                   fontSize: editorOptions.fontSize,

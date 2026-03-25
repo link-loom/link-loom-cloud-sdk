@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Typography from '@mui/material/Typography';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -22,6 +22,12 @@ const BottomPanel = ({
   const [activeTab, setActiveTab] = useState(0);
 
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  useEffect(() => {
+    if (buildErrors.length > 0) {
+      setActiveTab(1);
+    }
+  }, [buildErrors]);
 
   const handleToggle = () => {
     if (onToggle) {
