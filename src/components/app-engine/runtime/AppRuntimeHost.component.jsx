@@ -227,6 +227,12 @@ const AppRuntimeHost = ({
       }
 
       const { session: sessionData, app_version: version } = response.result;
+      console.log('[AppRuntimeHost] session opened:', {
+        routePath,
+        launchMode,
+        sessionRoutePath: sessionData.route_path,
+        sessionLaunchMode: sessionData.launch_mode,
+      });
       setSession(sessionData);
 
       if (!version?.build_artifact) {
@@ -276,7 +282,11 @@ const AppRuntimeHost = ({
         throw new Error('App module does not export a default component');
       }
 
-      const inputData = sessionData.input_payload || inputPayloadRef.current;
+      const inputData = {
+        ...(sessionData.input_payload || inputPayloadRef.current),
+        _loom_route_path: sessionData.route_path || routePath || '/',
+        _loom_launch_mode: sessionData.launch_mode || launchMode,
+      };
 
       const sdk = {
         session: {
