@@ -92,6 +92,18 @@ const buildBareSpecifierPattern = () => {
 // Legacy combined pattern for backward compat (will be built dynamically)
 let EXTERNAL_IMPORT_PATTERN = null;
 
+// JavaScript reserved words that cannot be used as variable names in
+// `export const <name> = ...` statements. Without this filter, modules
+// like axios (which exports a function named `delete`) would generate
+// invalid shim code such as `export const delete = m["delete"];`.
+const JS_RESERVED_WORDS = new Set([
+  'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do',
+  'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return',
+  'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with',
+  'class', 'const', 'enum', 'export', 'extends', 'import', 'super', 'implements',
+  'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield',
+]);
+
 const buildShimCode = (depKey) => {
   const moduleObj = window[RUNTIME_WINDOW_KEY]?.[depKey];
 
@@ -113,7 +125,8 @@ const buildShimCode = (depKey) => {
         (k) =>
           k !== 'default' &&
           k !== '__esModule' &&
-          /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k),
+          /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) &&
+          !JS_RESERVED_WORDS.has(k),
       )
       .forEach((k) => lines.push(`export const ${k} = m["${k}"];`));
   }
