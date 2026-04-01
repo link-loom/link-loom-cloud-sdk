@@ -116,10 +116,20 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
           const CategoryIcon = getCategoryIcon(category);
           const tint = getCategoryTint(category);
 
+          const publisherLogoUrl = app.publisher?.logo_url || app.publisher?.profile?.logo_url || null;
+
           return (
             <AppTile key={app.id} onClick={() => handleOpenApp(app)}>
-              <IconBox $bg={tint.bg}>
-                <DynamicMuiIcon iconName={app.icon} fallbackIcon={CategoryIcon} sx={{ fontSize: 22, color: tint.iconColor }} />
+              <IconBox $bg={publisherLogoUrl ? "transparent" : tint.bg} style={publisherLogoUrl ? { overflow: "hidden" } : undefined}>
+                {publisherLogoUrl ? (
+                  <img
+                    src={publisherLogoUrl}
+                    alt={app.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <DynamicMuiIcon iconName={app.icon} fallbackIcon={CategoryIcon} sx={{ fontSize: 22, color: tint.iconColor }} />
+                )}
               </IconBox>
               <Typography
                 variant="caption"
