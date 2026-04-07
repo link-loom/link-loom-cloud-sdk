@@ -39,3 +39,45 @@ export {
   RUNTIME_UI_DEFAULTS,
   mergeDefaults,
 } from './components/app-engine/defaults/appEngine.defaults';
+
+// ── Support Components ────────────────────────────────────────────
+export { default as SupportHubComponent } from './components/support/hub/SupportHub.component';
+export { default as SupportIncidentsListComponent } from './components/support/incidents/SupportIncidentsList.component';
+export { default as SupportGuideDetailComponent } from './components/support/guides/SupportGuideDetail.component';
+export { default as SupportCaseFormComponent } from './components/support/case-form/SupportCaseForm.component';
+export { default as SupportCaseListComponent } from './components/support/cases/SupportCaseList.component';
+export { default as SupportCaseDetailComponent } from './components/support/cases/SupportCaseDetail.component';
+export { default as SupportAssistantPanelComponent } from './components/support/assistant/SupportAssistantPanel.component';
+export { default as SupportIncidentBannerComponent } from './components/support/incidents/SupportIncidentBanner.component';
+export { default as SupportCategoryGridComponent } from './components/support/categories/SupportCategoryGrid.component';
+export { default as SupportStatusBadgeComponent } from './components/support/shared/SupportStatusBadge.component';
+export { default as SupportSeverityBadgeComponent } from './components/support/shared/SupportSeverityBadge.component';
+export { default as SupportEmptyStateComponent } from './components/support/shared/SupportEmptyState.component';
+export { default as SupportTimelineBlockComponent } from './components/support/timeline/SupportTimelineBlock.component';
+export { default as SupportResponseComposerComponent } from './components/support/timeline/SupportResponseComposer.component';
+
+// Support UI Defaults
+export {
+  SUPPORT_THEME,
+  SUPPORT_HUB_DEFAULTS,
+  SUPPORT_CASE_FORM_DEFAULTS,
+  SUPPORT_CASE_LIST_DEFAULTS,
+  SUPPORT_CASE_DETAIL_DEFAULTS,
+  SUPPORT_ASSISTANT_DEFAULTS,
+  SUPPORT_INCIDENT_BANNER_DEFAULTS,
+  SUPPORT_CATEGORY_GRID_DEFAULTS,
+  STATUS_CONFIG,
+  SEVERITY_CONFIG,
+  PRIORITY_CONFIG,
+} from './components/support/defaults/support.defaults';
+
+// Support Context + Hook
+export { SupportSDKProvider, useSupportSDK } from './features/support/context/SupportSDK.context';
+
+// Support Services
+export { default as SupportNamespaceService } from './services/support/support-namespace/support-namespace.service';
+export { default as SupportIssueCategoryService } from './services/support/support-issue-category/support-issue-category.service';
+export { default as SupportCaseService } from './services/support/support-case/support-case.service';
+export { default as SupportCaseMessageService } from './services/support/support-case-message/support-case-message.service';
+export { default as SupportIncidentService } from './services/support/support-incident/support-incident.service';
+export { default as SupportQuickGuideService } from './services/support/support-quick-guide/support-quick-guide.service';
