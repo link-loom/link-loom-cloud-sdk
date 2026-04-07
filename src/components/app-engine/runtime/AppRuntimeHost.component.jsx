@@ -203,6 +203,8 @@ const AppRuntimeHost = ({
   onClose,
   onSubmitOutput,
   onNavigate,
+  onRouteChange,
+  onStateCapture,
   className = '',
   renderLoading,
   renderError,
@@ -220,6 +222,7 @@ const AppRuntimeHost = ({
   const styleElementsRef = useRef([]);
   const inputPayloadRef = useRef(inputPayload || EMPTY_PAYLOAD);
   inputPayloadRef.current = inputPayload || EMPTY_PAYLOAD;
+  const stateProviderRef = useRef(null);
 
   const openSession = useCallback(async () => {
     if (!appSessionService || !appSlug) return;
@@ -240,12 +243,6 @@ const AppRuntimeHost = ({
       }
 
       const { session: sessionData, app_version: version } = response.result;
-      console.log('[AppRuntimeHost] session opened:', {
-        routePath,
-        launchMode,
-        sessionRoutePath: sessionData.route_path,
-        sessionLaunchMode: sessionData.launch_mode,
-      });
       setSession(sessionData);
 
       if (!version?.build_artifact) {
@@ -295,11 +292,13 @@ const AppRuntimeHost = ({
         throw new Error('App module does not export a default component');
       }
 
+      const mergedPayload = sessionData.input_payload || inputPayloadRef.current;
       const inputData = {
-        ...(sessionData.input_payload || inputPayloadRef.current),
+        ...mergedPayload,
         _loom_route_path: sessionData.route_path || routePath || '/',
         _loom_launch_mode: sessionData.launch_mode || launchMode,
       };
+      console.log('[AppRuntimeHost] loadAndMount sdk.input', { appSlug, launchMode, _loom_restored_state: inputData._loom_restored_state || null });
 
       const sdk = {
         session: {
@@ -351,6 +350,9 @@ const AppRuntimeHost = ({
         navigate: (path) => {
           if (onNavigate) onNavigate(path);
         },
+        onRouteChange: (path) => {
+          if (onRouteChange) onRouteChange(path);
+        },
         saveDraft: async (payload) => {
           if (appSessionService) {
             return appSessionService.saveDraft({ id: sessionData.id, draft_payload: payload });
@@ -371,6 +373,15 @@ const AppRuntimeHost = ({
           }
           if (onClose) onClose();
         },
+        registerStateProvider: (fn) => {
+          stateProviderRef.current = fn;
+        },
+        getState: () => {
+          if (stateProviderRef.current) {
+            return stateProviderRef.current();
+          }
+          return null;
+        },
       };
 
       if (mountRef.current) {
@@ -383,6 +394,32 @@ const AppRuntimeHost = ({
       setStatus('error');
     }
   };
+
+  useEffect(() => {
+    const handlePreEscalation = () => {
+      const hasProvider = !!stateProviderRef.current;
+      const currentState = hasProvider ? stateProviderRef.current() : null;
+      console.log('[AppRuntimeHost] pre-escalation received', { appSlug, hasProvider, currentState, sessionId: session?.id });
+
+      if (onStateCapture) {
+        onStateCapture({
+          sessionId: session?.id,
+          state: currentState,
+          routePath: currentState?.currentRoute || routePath,
+        });
+      }
+
+      if (currentState && session?.id && appSessionService) {
+        appSessionService.saveDraft({
+          id: session.id,
+          draft_payload: currentState,
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('sommatic:app:pre-escalation', handlePreEscalation);
+    return () => window.removeEventListener('sommatic:app:pre-escalation', handlePreEscalation);
+  }, [session, appSessionService, onStateCapture, routePath]);
 
   useEffect(() => {
     openSession();
