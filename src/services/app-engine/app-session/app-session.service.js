@@ -36,4 +36,11 @@ export default class AppEngineAppSessionService extends BaseApi {
   async cancel(payload) {
     return super.patch(payload, { endpoint: this.serviceEndpoints.cancel });
   }
+
+  async getById(sessionId) {
+    return super.get(
+      { search: sessionId },
+      { endpoint: `${this.serviceEndpoints.get}id` },
+    );
+  }
 }
