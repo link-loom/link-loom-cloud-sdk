@@ -50,6 +50,7 @@ export { default as SupportCaseDetailComponent } from './components/support/case
 export { default as SupportAssistantPanelComponent } from './components/support/assistant/SupportAssistantPanel.component';
 export { default as SupportIncidentBannerComponent } from './components/support/incidents/SupportIncidentBanner.component';
 export { default as SupportCategoryGridComponent } from './components/support/categories/SupportCategoryGrid.component';
+export { default as SupportAllCategoriesComponent } from './components/support/categories/SupportAllCategories.component';
 export { default as SupportStatusBadgeComponent } from './components/support/shared/SupportStatusBadge.component';
 export { default as SupportSeverityBadgeComponent } from './components/support/shared/SupportSeverityBadge.component';
 export { default as SupportEmptyStateComponent } from './components/support/shared/SupportEmptyState.component';

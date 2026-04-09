@@ -1,40 +1,23 @@
-import React from 'react';
-import styled from 'styled-components';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { SUPPORT_THEME } from '../defaults/support.theme';
+import React from "react";
+import styled from "styled-components";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { SUPPORT_THEME } from "../defaults/support.theme";
 import {
   SUPPORT_INCIDENT_BANNER_DEFAULTS,
   SEVERITY_CONFIG,
   mergeDefaults,
-} from '../defaults/support.defaults';
+} from "../defaults/support.defaults";
+import BackButton from "../../shared/BackButton.component";
 
-const BackButton = styled.button`
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: ${SUPPORT_THEME.textSecondary};
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 1.25rem;
-  &:hover {
-    color: ${SUPPORT_THEME.onSurface};
-  }
-`;
-
-const EmptyCard = styled.div.attrs({ className: 'card border text-center' })`
+const EmptyCard = styled.div.attrs({ className: "card border text-center" })`
   padding: 3rem 2rem;
   background: ${SUPPORT_THEME.surfaceContainerLowest};
   border-color: ${SUPPORT_THEME.surfaceContainer} !important;
 `;
 
-const IncidentCard = styled.div.attrs({ className: 'card border' })`
+const IncidentCard = styled.div.attrs({ className: "card border" })`
   padding: 1rem 1.25rem;
   border-left-width: 3px !important;
   border-left-color: ${(props) => props.$accentColor} !important;
@@ -68,130 +51,179 @@ const SeverityChip = styled.span`
 `;
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '-';
+  if (!dateStr) return "-";
   try {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   } catch {
     return String(dateStr);
   }
 };
 
-const SupportIncidentsList = ({ ui, incidents, namespace, itemOnAction, ...props }) => {
+const SupportIncidentsList = ({
+  ui,
+  incidents,
+  namespace,
+  itemOnAction,
+  ...props
+}) => {
   const config = mergeDefaults(SUPPORT_INCIDENT_BANNER_DEFAULTS, ui);
-  const productName = namespace?.presentation?.hero_title || namespace?.title || 'this product';
+  const productName =
+    namespace?.presentation?.hero_title || namespace?.title || "this product";
   const subtitle =
     namespace?.presentation?.subtitle ||
-    'Current service incidents and operational status updates.';
+    "Current service incidents and operational status updates.";
 
   const allIncidents = incidents || [];
 
   const emit = (action, payload = {}) => {
     if (!itemOnAction) return;
-    itemOnAction({ action: `link-loom-support::${action}`, namespace: 'link-loom-support', payload });
+    itemOnAction({
+      action: `link-loom-support::${action}`,
+      namespace: "link-loom-support",
+      payload,
+    });
   };
 
   return (
-    <div {...props}>
-      <BackButton onClick={() => emit('back-to-hub')}>
-        <ArrowBackIcon sx={{ fontSize: 16 }} />
-        Back
-      </BackButton>
+    <article className="card shadow" {...props}>
+      <section className="card-body">
+        <BackButton onClick={() => emit("back-to-hub")}>
+          Back to Support Hub
+        </BackButton>
 
-      <header className="mb-4">
-        <h3 className="fw-bold mb-1" style={{ color: SUPPORT_THEME.onSurface }}>
-          Incidents &amp; Status
-        </h3>
-        <p className="mb-0" style={{ fontSize: '0.875rem', color: SUPPORT_THEME.textMuted }}>
-          {subtitle}
-        </p>
-      </header>
+        <header className="d-flex flex-row justify-content-between mb-3">
+          <section>
+            <h4 className="mt-0 mb-1">Incidents &amp; Status</h4>
+            <p className="text-muted font-14 mb-3">{subtitle}</p>
+          </section>
+        </header>
 
-      {allIncidents.length === 0 ? (
-        <EmptyCard>
-          <CheckCircleOutlinedIcon sx={{ fontSize: 40, color: SUPPORT_THEME.success, mb: 1 }} />
-          <h5 className="fw-semibold mt-2 mb-1" style={{ color: SUPPORT_THEME.onSurface }}>
-            All systems operational
-          </h5>
-          <p className="mb-0" style={{ fontSize: '0.875rem', color: SUPPORT_THEME.textMuted }}>
-            No active or recent incidents for {productName}
-          </p>
-        </EmptyCard>
-      ) : (
-        <div className="d-flex flex-column gap-3">
-          {allIncidents.map((incident, index) => {
-            const isCritical = incident.severity === 'critical' || incident.severity === 'high';
-            const accentColor = isCritical ? SUPPORT_THEME.error : SUPPORT_THEME.warning;
-            const Icon = isCritical ? ErrorOutlineIcon : WarningAmberOutlinedIcon;
-            const severityCfg = SEVERITY_CONFIG[incident.severity] || {};
+        {allIncidents.length === 0 ? (
+          <EmptyCard>
+            <div className="mx-auto mb-1">
+              <CheckCircleOutlinedIcon
+                sx={{ fontSize: 40, color: SUPPORT_THEME.success }}
+              />
+            </div>
+            <h5
+              className="fw-semibold mt-2 mb-1"
+              style={{ color: SUPPORT_THEME.onSurface }}
+            >
+              All systems operational
+            </h5>
+            <p
+              className="mb-0"
+              style={{ fontSize: "0.875rem", color: SUPPORT_THEME.textMuted }}
+            >
+              No active or recent incidents for {productName}
+            </p>
+          </EmptyCard>
+        ) : (
+          <div className="d-flex flex-column gap-3">
+            {allIncidents.map((incident, index) => {
+              const isCritical =
+                incident.severity === "critical" ||
+                incident.severity === "high";
+              const accentColor = isCritical
+                ? SUPPORT_THEME.error
+                : SUPPORT_THEME.warning;
+              const Icon = isCritical
+                ? ErrorOutlineIcon
+                : WarningAmberOutlinedIcon;
+              const severityCfg = SEVERITY_CONFIG[incident.severity] || {};
 
-            return (
-              <IncidentCard
-                key={incident.id || index}
-                $accentColor={accentColor}
-                onClick={() => emit('incident-view', { incident })}
-              >
-                <div className="d-flex align-items-start justify-content-between gap-3">
-                  <div className="d-flex align-items-start gap-3 flex-grow-1">
-                    <IconCircle>
-                      <Icon sx={{ fontSize: 18, color: accentColor }} />
-                    </IconCircle>
+              return (
+                <IncidentCard
+                  key={incident.id || index}
+                  $accentColor={accentColor}
+                  onClick={() => emit("incident-view", { incident })}
+                >
+                  <div className="d-flex align-items-start justify-content-between gap-3">
+                    <div className="d-flex align-items-start gap-3 flex-grow-1">
+                      <IconCircle>
+                        <Icon sx={{ fontSize: 18, color: accentColor }} />
+                      </IconCircle>
 
-                    <div className="flex-grow-1">
-                      <p className="fw-semibold mb-1" style={{ fontSize: '0.875rem', color: SUPPORT_THEME.onSurface }}>
-                        {incident.title}
-                      </p>
-                      {incident.summary && (
-                        <p className="mb-2" style={{ fontSize: '0.78rem', color: SUPPORT_THEME.textMuted }}>
-                          {incident.summary}
+                      <div className="flex-grow-1">
+                        <p
+                          className="fw-semibold mb-1"
+                          style={{
+                            fontSize: "0.875rem",
+                            color: SUPPORT_THEME.onSurface,
+                          }}
+                        >
+                          {incident.title}
                         </p>
-                      )}
-
-                      <div className="d-flex flex-wrap gap-1 mt-1">
-                        {incident.severity && (
-                          <SeverityChip $color={severityCfg.color} $bg={severityCfg.bg}>
-                            {incident.severity}
-                          </SeverityChip>
-                        )}
-                        {incident.status && (
-                          <SeverityChip
-                            $color={SUPPORT_THEME.onSurfaceVariant}
-                            $bg={SUPPORT_THEME.surfaceContainer}
+                        {incident.summary && (
+                          <p
+                            className="mb-2"
+                            style={{
+                              fontSize: "0.78rem",
+                              color: SUPPORT_THEME.textMuted,
+                            }}
                           >
-                            {typeof incident.status === 'object' ? incident.status.name : incident.status}
-                          </SeverityChip>
+                            {incident.summary}
+                          </p>
                         )}
-                        {Array.isArray(incident.affected_modules) &&
-                          incident.affected_modules.map((module, moduleIndex) => (
+
+                        <div className="d-flex flex-wrap gap-1 mt-1">
+                          {incident.severity && (
                             <SeverityChip
-                              key={moduleIndex}
-                              $color={SUPPORT_THEME.outline}
-                              $bg={SUPPORT_THEME.surfaceContainerLow}
+                              $color={severityCfg.color}
+                              $bg={severityCfg.bg}
                             >
-                              {module}
+                              {incident.severity}
                             </SeverityChip>
-                          ))}
+                          )}
+                          {incident.status && (
+                            <SeverityChip
+                              $color={SUPPORT_THEME.onSurfaceVariant}
+                              $bg={SUPPORT_THEME.surfaceContainer}
+                            >
+                              {typeof incident.status === "object"
+                                ? incident.status.name
+                                : incident.status}
+                            </SeverityChip>
+                          )}
+                          {Array.isArray(incident.affected_modules) &&
+                            incident.affected_modules.map(
+                              (module, moduleIndex) => (
+                                <SeverityChip
+                                  key={moduleIndex}
+                                  $color={SUPPORT_THEME.outline}
+                                  $bg={SUPPORT_THEME.surfaceContainerLow}
+                                >
+                                  {module}
+                                </SeverityChip>
+                              ),
+                            )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <span
-                    className="flex-shrink-0"
-                    style={{ fontSize: '0.78rem', color: SUPPORT_THEME.textMuted, whiteSpace: 'nowrap' }}
-                  >
-                    {formatDate(incident.started_at)}
-                  </span>
-                </div>
-              </IncidentCard>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                    <span
+                      className="flex-shrink-0"
+                      style={{
+                        fontSize: "0.78rem",
+                        color: SUPPORT_THEME.textMuted,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDate(incident.started_at)}
+                    </span>
+                  </div>
+                </IncidentCard>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </article>
   );
 };
 

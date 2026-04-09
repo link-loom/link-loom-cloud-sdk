@@ -112,7 +112,7 @@ const BrowseAllBtn = styled.button`
 const ACTIONS = [
   { key: 'report-issue', Icon: ReportProblemOutlinedIcon, label: 'Report an issue', description: 'Submit a new support case', color: SUPPORT_THEME.error, bg: `${SUPPORT_THEME.error}15` },
   { key: 'request-help', Icon: HelpOutlineIcon, label: 'Request help', description: 'Get assistance from the team', color: SUPPORT_THEME.tertiary, bg: `${SUPPORT_THEME.tertiary}15` },
-  { key: 'view-incidents', Icon: VisibilityOutlinedIcon, label: 'View incidents', description: 'Check active service incidents', color: SUPPORT_THEME.onSurfaceVariant, bg: SUPPORT_THEME.surfaceContainerLow },
+  { key: 'view-all-cases', Icon: VisibilityOutlinedIcon, label: 'View cases', description: 'Track your active support cases', color: SUPPORT_THEME.onSurfaceVariant, bg: SUPPORT_THEME.surfaceContainerLow },
   { key: 'ask-assistant', Icon: AutoAwesomeOutlinedIcon, label: 'Ask support assistant', description: 'AI-guided troubleshooting', inverted: true },
 ];
 
@@ -151,9 +151,9 @@ const SupportHub = ({
         </p>
       </header>
 
-      {/* Incident Banner */}
+      {/* Open Cases Banner */}
       <div style={{ marginBottom: '2rem' }}>
-        <SupportIncidentBanner incidents={incidents} namespace={namespace} itemOnAction={itemOnAction} />
+        <SupportIncidentBanner recentCases={recentCases} namespace={namespace} itemOnAction={itemOnAction} />
       </div>
 
       {/* Immediate Actions — full width */}

@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SendIcon from '@mui/icons-material/Send';
 import { SUPPORT_THEME } from '../defaults/support.defaults';
 
@@ -32,14 +30,14 @@ const SupportResponseComposer = ({ onSubmit, isSubmitting, ...props }) => {
           className="fw-semibold"
           style={{ fontSize: '13px', color: SUPPORT_THEME.textPrimary }}
         >
-          Add a response
+          Add a comment
         </span>
       </div>
 
       <textarea
         className="form-control border-0 p-0 mb-2"
         rows={4}
-        placeholder="Type your response..."
+        placeholder="Add more details or ask a follow-up question..."
         value={responseText}
         onChange={(event) => setResponseText(event.target.value)}
         onKeyDown={handleKeyDown}
@@ -55,17 +53,9 @@ const SupportResponseComposer = ({ onSubmit, isSubmitting, ...props }) => {
       />
 
       <div
-        className="d-flex align-items-center justify-content-between pt-2"
+        className="d-flex align-items-center justify-content-end pt-2"
         style={{ borderTop: `1px solid ${SUPPORT_THEME.border}` }}
       >
-        <IconButton
-          size="small"
-          sx={{ color: SUPPORT_THEME.textMuted }}
-          title="Attach Diagnostics"
-        >
-          <AttachFileIcon fontSize="small" />
-        </IconButton>
-
         <Button
           size="small"
           variant="contained"

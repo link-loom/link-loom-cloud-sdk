@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { styled } from '@mui/material/styles';
+import styled from 'styled-components';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import ToggleButton from '@mui/material/ToggleButton';
 import SendIcon from '@mui/icons-material/Send';
-import ComputerIcon from '@mui/icons-material/Computer';
 import LanguageIcon from '@mui/icons-material/Language';
+import ComputerIcon from '@mui/icons-material/Computer';
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
@@ -16,44 +16,22 @@ import {
   SUPPORT_CASE_FORM_DEFAULTS,
   mergeDefaults,
 } from '../defaults/support.defaults';
+import BackButton from '../../shared/BackButton.component';
 
-const SeverityButton = styled('button')(({ $active, $color }) => ({
-  flex: 1,
-  padding: '8px 12px',
-  border: `1px solid ${$active ? $color : '#e2e8f0'}`,
-  borderRadius: '6px',
-  backgroundColor: $active ? `${$color}10` : 'transparent',
-  color: $active ? $color : '#6B7280',
-  fontSize: '13px',
-  fontWeight: $active ? 600 : 400,
-  cursor: 'pointer',
-  transition: 'all 0.15s',
-  '&:hover': {
-    borderColor: $color,
-    color: $color,
-  },
-}));
+const DiagnosticRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+`;
 
-const DropzoneArea = styled('div')(({ $borderColor }) => ({
-  border: `2px dashed ${$borderColor || '#e2e8f0'}`,
-  borderRadius: '8px',
-  padding: '24px',
-  textAlign: 'center',
-  cursor: 'pointer',
-  transition: 'border-color 0.2s, background-color 0.2s',
-  '&:hover': {
-    borderColor: '#94a3b8',
-    backgroundColor: '#f8fafc',
-  },
-}));
-
-const DiagnosticRow = styled('div')({
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '6px 0',
-  fontSize: '12px',
-});
+const SectionLabel = styled.h6.attrs({ className: 'text-uppercase fw-semibold' })`
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: ${(props) => props.$color || '#6b7280'};
+  margin-bottom: 0.75rem;
+`;
 
 const SupportCaseForm = ({
   ui,
@@ -63,15 +41,24 @@ const SupportCaseForm = ({
   itemOnAction,
   ...props
 }) => {
+  // Hooks
   const config = mergeDefaults(SUPPORT_CASE_FORM_DEFAULTS, ui);
   const theme = config.theme;
 
+  // Models / State
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [summary, setSummary] = useState('');
   const [details, setDetails] = useState('');
-  const [severity, setSeverity] = useState('medium');
+  const [severity, setSeverity] = useState('low');
   const [businessImpact, setBusinessImpact] = useState('');
+
+  // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Component Functions
+  const handleSeverityChange = (event, newSeverity) => {
+    if (newSeverity !== null) setSeverity(newSeverity);
+  };
 
   const handleSubmit = async () => {
     if (!summary.trim() || !itemOnAction) return;
@@ -97,154 +84,115 @@ const SupportCaseForm = ({
     setIsSubmitting(false);
   };
 
+  // Configs
   const categoryOptions = (categories || []).map((cat) => ({
     ...cat,
     label: cat.title || cat.name || 'Unknown',
   }));
 
+  const emit = (action, payload = {}) => {
+    if (!itemOnAction) return;
+    itemOnAction({ action: `link-loom-support::${action}`, namespace: 'link-loom-support', payload });
+  };
+
+  // Render
   return (
-    <div {...props}>
-      {/* Header */}
-      <header className="mb-4">
-        <h3 className="fw-bold mb-1" style={{ color: theme.textPrimary }}>
-          {config.title}
-        </h3>
-        <p className="text-muted mb-0" style={{ fontSize: '14px' }}>
-          {config.subtitle}
-        </p>
-      </header>
+    <article className="card shadow" {...props}>
+      <section className="card-body">
+        <BackButton onClick={() => emit('back-to-hub')}>Back to Support Hub</BackButton>
+
+        <header className="d-flex flex-row justify-content-between mb-3">
+          <section>
+            <h4 className="mt-0 mb-1">{config.title}</h4>
+            <p className="text-muted font-14 mb-3">{config.subtitle}</p>
+          </section>
+        </header>
 
       <div className="row g-4">
-        {/* Form — left column */}
+        {/* ── Main Form Column ─────────────────────────────── */}
         <div className="col-md-8">
           <div className="d-flex flex-column gap-4">
+
             {/* Problem Classification */}
-            <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
-              >
-                {config.classificationLabel}
-              </label>
-              <Autocomplete
-                options={categoryOptions}
-                getOptionLabel={(option) => option.label || ''}
-                value={selectedCategory}
-                onChange={(event, newValue) => setSelectedCategory(newValue)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={config.classificationPlaceholder}
-                    size="small"
-                    fullWidth
-                  />
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
-                sx={{ '& .MuiOutlinedInput-root': { fontSize: '13px' } }}
-              />
-            </div>
+            <Autocomplete
+              options={categoryOptions}
+              getOptionLabel={(option) => option.label || ''}
+              value={selectedCategory}
+              onChange={(event, newValue) => setSelectedCategory(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={config.classificationLabel}
+                  placeholder={config.classificationPlaceholder}
+                  size="small"
+                  fullWidth
+                />
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value?.id}
+            />
 
             {/* Issue Summary */}
-            <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
-              >
-                {config.summaryLabel}
-              </label>
-              <TextField
-                placeholder={config.summaryPlaceholder}
-                size="small"
-                fullWidth
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { fontSize: '13px' } }}
-              />
-            </div>
+            <TextField
+              label={config.summaryLabel}
+              placeholder={config.summaryPlaceholder}
+              size="small"
+              fullWidth
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+            />
 
             {/* Issue Details */}
-            <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
-              >
-                {config.detailsLabel}
-              </label>
-              <TextField
-                placeholder={config.detailsPlaceholder}
-                size="small"
-                fullWidth
-                multiline
-                rows={5}
-                value={details}
-                onChange={(event) => setDetails(event.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { fontSize: '13px' } }}
-              />
-            </div>
+            <TextField
+              label={config.detailsLabel}
+              placeholder={config.detailsPlaceholder}
+              size="small"
+              fullWidth
+              multiline
+              rows={5}
+              value={details}
+              onChange={(event) => setDetails(event.target.value)}
+            />
 
             {/* Severity Level */}
             <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
+              <SectionLabel $color={theme.textMuted}>{config.severityLabel}</SectionLabel>
+              <ToggleButtonGroup
+                value={severity}
+                exclusive
+                onChange={handleSeverityChange}
+                size="small"
+                sx={{ width: '100%', '& .MuiToggleButton-root': { flex: 1, textTransform: 'none', fontSize: '0.8rem', fontWeight: 500 } }}
               >
-                {config.severityLabel}
-              </label>
-              <div className="d-flex gap-2">
                 {config.severityOptions.map((option) => (
-                  <SeverityButton
+                  <ToggleButton
                     key={option.value}
-                    type="button"
-                    $active={severity === option.value}
-                    $color={option.color}
-                    onClick={() => setSeverity(option.value)}
+                    value={option.value}
+                    sx={{
+                      '&.Mui-selected': {
+                        backgroundColor: `${option.color}15`,
+                        color: option.color,
+                        borderColor: `${option.color} !important`,
+                        '&:hover': { backgroundColor: `${option.color}25` },
+                      },
+                    }}
                   >
                     {option.label}
-                  </SeverityButton>
+                  </ToggleButton>
                 ))}
-              </div>
+              </ToggleButtonGroup>
             </div>
 
             {/* Business Impact */}
-            <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
-              >
-                {config.businessImpactLabel}
-              </label>
-              <TextField
-                placeholder={config.businessImpactPlaceholder}
-                size="small"
-                fullWidth
-                multiline
-                rows={3}
-                value={businessImpact}
-                onChange={(event) => setBusinessImpact(event.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { fontSize: '13px' } }}
-              />
-            </div>
-
-            {/* Attachments */}
-            <div>
-              <label
-                className="form-label fw-semibold"
-                style={{ fontSize: '13px', color: theme.textPrimary }}
-              >
-                {config.attachmentsLabel}
-              </label>
-              <DropzoneArea $borderColor={theme.border}>
-                <CloudUploadIcon
-                  sx={{ fontSize: 32, color: theme.textMuted, mb: 1 }}
-                />
-                <p
-                  className="mb-0"
-                  style={{ fontSize: '13px', color: theme.textSecondary }}
-                >
-                  {config.attachmentsHint}
-                </p>
-              </DropzoneArea>
-            </div>
+            <TextField
+              label={config.businessImpactLabel}
+              placeholder={config.businessImpactPlaceholder}
+              size="small"
+              fullWidth
+              multiline
+              rows={3}
+              value={businessImpact}
+              onChange={(event) => setBusinessImpact(event.target.value)}
+            />
 
             {/* Submit */}
             <div>
@@ -255,13 +203,14 @@ const SupportCaseForm = ({
                 endIcon={<SendIcon sx={{ fontSize: 16 }} />}
                 sx={{
                   textTransform: 'none',
-                  fontSize: '13px',
+                  fontSize: '0.8rem',
                   fontWeight: 600,
                   backgroundColor: theme.brandPrimary,
-                  '&:hover': { backgroundColor: '#334155' },
+                  boxShadow: 'none',
+                  '&:hover': { backgroundColor: '#334155', boxShadow: 'none' },
                   '&:disabled': { backgroundColor: theme.border },
                   px: 3,
-                  py: 1,
+                  py: 1.1,
                 }}
               >
                 {config.submitLabel}
@@ -270,17 +219,12 @@ const SupportCaseForm = ({
           </div>
         </div>
 
-        {/* Sidebar — right column */}
+        {/* ── Sidebar Column ───────────────────────────────── */}
         <div className="col-md-4">
-          {/* Diagnostics Summary */}
-          <div className="card border rounded-3 p-3 mb-3">
-            <h6
-              className="text-uppercase fw-semibold mb-3"
-              style={{ fontSize: '11px', letterSpacing: '0.05em', color: theme.textMuted }}
-            >
-              {config.diagnosticsTitle}
-            </h6>
 
+          {/* Diagnostics Summary */}
+          <div className="card border p-3 mb-3">
+            <SectionLabel $color={theme.textMuted}>{config.diagnosticsTitle}</SectionLabel>
             <div className="d-flex flex-column">
               {context?.environment && (
                 <DiagnosticRow>
@@ -345,12 +289,7 @@ const SupportCaseForm = ({
                 </div>
                 <p
                   className="mb-0"
-                  style={{
-                    fontSize: '11px',
-                    color: theme.textSecondary,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
+                  style={{ fontSize: '11px', color: theme.textSecondary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                 >
                   {context.recentError}
                 </p>
@@ -359,14 +298,8 @@ const SupportCaseForm = ({
           </div>
 
           {/* Related Knowledge Base */}
-          <div className="card border rounded-3 p-3">
-            <h6
-              className="text-uppercase fw-semibold mb-3"
-              style={{ fontSize: '11px', letterSpacing: '0.05em', color: theme.textMuted }}
-            >
-              {config.relatedKbTitle}
-            </h6>
-
+          <div className="card border p-3">
+            <SectionLabel $color={theme.textMuted}>{config.relatedKbTitle}</SectionLabel>
             {(!context?.relatedArticles || context.relatedArticles.length === 0) ? (
               <p className="mb-0" style={{ fontSize: '12px', color: theme.textMuted }}>
                 {config.noRelatedKb}
@@ -380,9 +313,7 @@ const SupportCaseForm = ({
                     style={{ cursor: 'pointer' }}
                   >
                     <MenuBookIcon sx={{ fontSize: 14, color: theme.brandAccent }} />
-                    <span style={{ fontSize: '12px', color: theme.brandAccent }}>
-                      {article.title}
-                    </span>
+                    <span style={{ fontSize: '12px', color: theme.brandAccent }}>{article.title}</span>
                   </div>
                 ))}
               </div>
@@ -390,7 +321,8 @@ const SupportCaseForm = ({
           </div>
         </div>
       </div>
-    </div>
+      </section>
+    </article>
   );
 };
 

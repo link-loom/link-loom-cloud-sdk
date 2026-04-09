@@ -61,7 +61,7 @@ export const SUPPORT_CASE_FORM_DEFAULTS = {
   attachmentsLabel: 'Attachments',
   attachmentsHint: 'Drag files here or click to browse',
   submitLabel: 'Submit Support Case',
-  diagnosticsTitle: 'DIAGNOSTICS SUMMARY',
+  diagnosticsTitle: 'Diagnostics Summary',
   relatedKbTitle: 'Related Knowledge Base',
   noRelatedKb: 'No related articles found',
 
@@ -82,8 +82,9 @@ export const SUPPORT_CASE_FORM_DEFAULTS = {
 export const SUPPORT_CASE_LIST_DEFAULTS = {
   // Labels
   title: 'Support Cases',
+  subtitle: 'Here you can see, track and manage your support cases',
   exportLabel: 'Export Records',
-  createCaseLabel: '+ Open a Support Case',
+  createCaseLabel: 'Open a Support Case',
   searchPlaceholder: 'Search cases...',
   filterAllProducts: 'All Products',
   filterStatus: 'Status',
@@ -118,9 +119,9 @@ export const SUPPORT_CASE_DETAIL_DEFAULTS = {
   breadcrumbRoot: 'Support Cases',
   escalateLabel: 'Escalate Case',
   resolveLabel: 'Resolve Case',
-  caseInfoTitle: 'CASE INFORMATION',
-  diagnosticsTitle: 'DIAGNOSTICS CONTEXT',
-  internalResourcesTitle: 'INTERNAL RESOURCES',
+  caseInfoTitle: 'Case Information',
+  diagnosticsTitle: 'Diagnostics Context',
+  internalResourcesTitle: 'Internal Resources',
   responseTitle: 'Add a response',
   responsePlaceholder: 'Type your response...',
   attachDiagnosticsLabel: 'Attach Diagnostics',
@@ -147,11 +148,11 @@ export const SUPPORT_ASSISTANT_DEFAULTS = {
   // Labels
   title: 'Support Assistant',
   subtitle: 'Guided help based on your current context',
-  sessionContextTitle: 'SESSION CONTEXT',
-  diagnosticsTitle: 'DIAGNOSTICS',
+  sessionContextTitle: 'Session Context',
+  diagnosticsTitle: 'Diagnostics',
   diagnosticsReady: 'Ready',
   diagnosticsBundle: 'Logs & Stack Trace Attached',
-  viewBundleLabel: 'VIEW BUNDLE',
+  viewBundleLabel: 'View Bundle',
   escalationTitle: 'Need more help?',
   escalationDescription: 'Create a support case with full diagnostics attached',
   escalationAction: 'Escalate to Support',
@@ -196,8 +197,14 @@ export const STATUS_CONFIG = {
   pending: { label: 'Pending', color: '#8b5cf6', bg: '#f5f3ff' },
   resolved: { label: 'Resolved', color: '#22c55e', bg: '#f0fdf4' },
   closed: { label: 'Closed', color: '#6B7280', bg: '#f9fafb' },
-  cancelled: { label: 'Cancelled', color: '#6B7280', bg: '#f9fafb' },
+  cancelled: { label: 'Cancelled', color: '#ef4444', bg: '#fef2f2' },
+  deleted: { label: 'Deleted', color: '#9CA3AF', bg: '#f3f4f6' },
 };
+
+// Statuses that end users are allowed to set on their own cases.
+// Internal transitions (open, in_progress, pending, resolved, closed, deleted)
+// are handled by support staff or by explicit action buttons (Resolve / Close / Delete).
+export const USER_SELECTABLE_STATUSES = ['resolved', 'closed', 'deleted'];
 
 export const SEVERITY_CONFIG = {
   low: { label: 'Low', color: '#3b82f6', bg: '#eff6ff' },
