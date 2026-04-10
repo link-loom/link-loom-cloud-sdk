@@ -138,6 +138,12 @@ export const SUPPORT_CASE_DETAIL_DEFAULTS = {
   labelOs: 'OS',
   labelRegion: 'Region',
 
+  // Timeline labels
+  updateMetadataLabel: 'Update Case Metadata',
+  caseCreatedLabel: 'Case Created',
+  diagnosticsAttachedLabel: 'Diagnostics Attached',
+  viewAnalysisLabel: 'View Analysis',
+
   // Theme (nested)
   theme: { ...SUPPORT_THEME },
 };

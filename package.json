@@ -51,10 +51,12 @@
     "@emotion/styled": "^11.14.1",
     "@link-loom/react-sdk": "1.1.70",
     "@monaco-editor/react": "^4.7.0",
-    "@mui/material": "^7.3.9",
     "@mui/icons-material": "^7.3.9",
+    "@mui/material": "^7.3.9",
     "@mui/x-date-pickers": "^8.27.2",
     "axios": "^1.7.7",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "styled-components": "^6.3.8"
   },
   "devDependencies": {

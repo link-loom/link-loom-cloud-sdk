@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -17,6 +17,7 @@ import {
   mergeDefaults,
 } from '../defaults/support.defaults';
 import BackButton from '../../shared/BackButton.component';
+import { parseDiagnosticsFromNavigator } from '../shared/diagnostics.utils';
 
 const DiagnosticRow = styled.div`
   display: flex;
@@ -55,6 +56,14 @@ const SupportCaseForm = ({
   // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Configs
+  const clientDiagnostics = useMemo(() => parseDiagnosticsFromNavigator(), []);
+  const enrichedContext = useMemo(() => ({
+    ...context,
+    browser: context?.browser || clientDiagnostics.browser,
+    os: context?.os || clientDiagnostics.os,
+  }), [context, clientDiagnostics]);
+
   // Component Functions
   const handleSeverityChange = (event, newSeverity) => {
     if (newSeverity !== null) setSeverity(newSeverity);
@@ -72,7 +81,9 @@ const SupportCaseForm = ({
       details: details.trim(),
       severity,
       business_impact: businessImpact.trim(),
-      context: context || {},
+      browser: enrichedContext.browser,
+      os: enrichedContext.os,
+      context: enrichedContext,
     };
 
     await itemOnAction({
@@ -226,34 +237,34 @@ const SupportCaseForm = ({
           <div className="card border p-3 mb-3">
             <SectionLabel $color={theme.textMuted}>{config.diagnosticsTitle}</SectionLabel>
             <div className="d-flex flex-column">
-              {context?.environment && (
+              {enrichedContext?.environment && (
                 <DiagnosticRow>
                   <LanguageIcon sx={{ fontSize: 14, color: theme.textMuted }} />
                   <span style={{ color: theme.textSecondary }}>Environment</span>
                   <span className="ms-auto fw-medium" style={{ color: theme.textPrimary }}>
-                    {context.environment}
+                    {enrichedContext.environment}
                   </span>
                 </DiagnosticRow>
               )}
-              {context?.browser && (
+              {enrichedContext?.browser && (
                 <DiagnosticRow>
                   <LanguageIcon sx={{ fontSize: 14, color: theme.textMuted }} />
                   <span style={{ color: theme.textSecondary }}>Browser</span>
                   <span className="ms-auto fw-medium" style={{ color: theme.textPrimary }}>
-                    {context.browser}
+                    {enrichedContext.browser}
                   </span>
                 </DiagnosticRow>
               )}
-              {context?.os && (
+              {enrichedContext?.os && (
                 <DiagnosticRow>
                   <ComputerIcon sx={{ fontSize: 14, color: theme.textMuted }} />
                   <span style={{ color: theme.textSecondary }}>OS</span>
                   <span className="ms-auto fw-medium" style={{ color: theme.textPrimary }}>
-                    {context.os}
+                    {enrichedContext.os}
                   </span>
                 </DiagnosticRow>
               )}
-              {context?.userId && (
+              {enrichedContext?.userId && (
                 <DiagnosticRow>
                   <PersonIcon sx={{ fontSize: 14, color: theme.textMuted }} />
                   <span style={{ color: theme.textSecondary }}>User</span>
@@ -261,11 +272,11 @@ const SupportCaseForm = ({
                     className="ms-auto fw-medium text-truncate"
                     style={{ color: theme.textPrimary, maxWidth: '120px' }}
                   >
-                    {context.userId}
+                    {enrichedContext.userId}
                   </span>
                 </DiagnosticRow>
               )}
-              {context?.organizationId && (
+              {enrichedContext?.organizationId && (
                 <DiagnosticRow>
                   <BusinessIcon sx={{ fontSize: 14, color: theme.textMuted }} />
                   <span style={{ color: theme.textSecondary }}>Organization</span>
@@ -273,13 +284,13 @@ const SupportCaseForm = ({
                     className="ms-auto fw-medium text-truncate"
                     style={{ color: theme.textPrimary, maxWidth: '120px' }}
                   >
-                    {context.organizationId}
+                    {enrichedContext.organizationId}
                   </span>
                 </DiagnosticRow>
               )}
             </div>
 
-            {context?.recentError && (
+            {enrichedContext?.recentError && (
               <div className="mt-3 p-2 rounded-2" style={{ backgroundColor: '#fef2f2' }}>
                 <div className="d-flex align-items-center gap-1 mb-1">
                   <ErrorOutlineIcon sx={{ fontSize: 14, color: theme.error }} />
@@ -291,7 +302,7 @@ const SupportCaseForm = ({
                   className="mb-0"
                   style={{ fontSize: '11px', color: theme.textSecondary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                 >
-                  {context.recentError}
+                  {enrichedContext.recentError}
                 </p>
               </div>
             )}
@@ -300,13 +311,13 @@ const SupportCaseForm = ({
           {/* Related Knowledge Base */}
           <div className="card border p-3">
             <SectionLabel $color={theme.textMuted}>{config.relatedKbTitle}</SectionLabel>
-            {(!context?.relatedArticles || context.relatedArticles.length === 0) ? (
+            {(!enrichedContext?.relatedArticles || enrichedContext.relatedArticles.length === 0) ? (
               <p className="mb-0" style={{ fontSize: '12px', color: theme.textMuted }}>
                 {config.noRelatedKb}
               </p>
             ) : (
               <div className="d-flex flex-column gap-2">
-                {context.relatedArticles.map((article, index) => (
+                {enrichedContext.relatedArticles.map((article, index) => (
                   <div
                     key={article.id || index}
                     className="d-flex align-items-center gap-2"

@@ -57,4 +57,12 @@ export const SUPPORT_THEME = {
 
   // Ghost border (15% opacity outline-variant)
   ghostBorder: 'rgba(167, 180, 186, 0.15)',
+
+  // Aliases (used by components, mapped to canonical keys above)
+  textPrimary: '#283439',
+  border: '#e2e8f0',
+  brandPrimary: '#585e6c',
+  brandAccent: '#2B6CB0',
+  surfaceLight: '#f7fafc',
+  surfaceSecondary: '#eff4f7',
 };

@@ -1,77 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Button from '@mui/material/Button';
-import SendIcon from '@mui/icons-material/Send';
+import { TextEditor } from '@link-loom/react-sdk';
 import { SUPPORT_THEME } from '../defaults/support.defaults';
 
-const SupportResponseComposer = ({ onSubmit, isSubmitting, ...props }) => {
-  const [responseText, setResponseText] = useState('');
+const SupportResponseComposer = ({
+  onSubmit,
+  isSubmitting,
+  theme = SUPPORT_THEME,
+  config = {},
+  ...props
+}) => {
+  const [editorKey, setEditorKey] = useState(0);
+  const [markdownContent, setMarkdownContent] = useState('');
+  const [plainText, setPlainText] = useState('');
 
-  const handleSubmit = () => {
-    if (!responseText.trim() || !onSubmit) return;
-    onSubmit({ body: responseText.trim() });
-    setResponseText('');
-  };
+  const handleModelChange = useCallback(({ model, modelText }) => {
+    setMarkdownContent(model ? decodeURIComponent(model) : '');
+    setPlainText(modelText || '');
+  }, []);
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      handleSubmit();
-    }
-  };
+  const handleSubmit = useCallback(() => {
+    const trimmed = plainText.trim();
+    if (!trimmed || !onSubmit) return;
+    onSubmit({ body: markdownContent.trim() });
+    setMarkdownContent('');
+    setPlainText('');
+    setEditorKey((prev) => prev + 1);
+  }, [plainText, markdownContent, onSubmit]);
+
+  const title = config.responseTitle || 'Add a response';
+  const isEmpty = !plainText.trim();
 
   return (
     <div
-      className="border rounded-3 p-3"
-      style={{ borderColor: SUPPORT_THEME.border }}
+      className="border rounded-3 overflow-hidden"
+      style={{ borderColor: theme.border }}
       {...props}
     >
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <span
-          className="fw-semibold"
-          style={{ fontSize: '13px', color: SUPPORT_THEME.textPrimary }}
-        >
-          Add a comment
-        </span>
-      </div>
-
-      <textarea
-        className="form-control border-0 p-0 mb-2"
-        rows={4}
-        placeholder="Add more details or ask a follow-up question..."
-        value={responseText}
-        onChange={(event) => setResponseText(event.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={isSubmitting}
-        style={{
-          resize: 'none',
-          fontSize: '13px',
-          color: SUPPORT_THEME.textPrimary,
-          backgroundColor: 'transparent',
-          outline: 'none',
-          boxShadow: 'none',
+      <TextEditor
+        key={editorKey}
+        id="support-response-editor"
+        modelraw={encodeURIComponent('')}
+        onModelChange={handleModelChange}
+        outputFormat="markdown"
+        autoGrow={true}
+        minRows={3}
+        maxRows={8}
+        toolbarOptions={['bold', 'italic', 'code']}
+        ui={{
+          toolbar: {
+            layout: 'inline',
+            title,
+            titleColor: theme.textPrimary,
+            className: 'bg-body',
+            borderBottom: `1px solid ${theme.border}`,
+          },
         }}
       />
 
       <div
-        className="d-flex align-items-center justify-content-end pt-2"
-        style={{ borderTop: `1px solid ${SUPPORT_THEME.border}` }}
+        className="d-flex align-items-center justify-content-end px-3 py-2"
+        style={{ borderTop: `1px solid ${theme.border}` }}
       >
         <Button
           size="small"
           variant="contained"
           onClick={handleSubmit}
-          disabled={!responseText.trim() || isSubmitting}
-          endIcon={<SendIcon sx={{ fontSize: 14 }} />}
+          disabled={isEmpty || isSubmitting}
           sx={{
             textTransform: 'none',
             fontSize: '12px',
-            fontWeight: 500,
-            backgroundColor: SUPPORT_THEME.brandPrimary,
-            '&:hover': { backgroundColor: '#334155' },
-            '&:disabled': { backgroundColor: SUPPORT_THEME.border },
+            fontWeight: 600,
+            backgroundColor: theme.primary,
+            color: theme.onPrimary,
+            boxShadow: 'none',
+            '&:hover': { backgroundColor: theme.primaryDim, boxShadow: 'none' },
+            '&:disabled': { backgroundColor: theme.border },
           }}
         >
-          Post Response
+          Post response
         </Button>
       </div>
     </div>
