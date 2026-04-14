@@ -13,6 +13,7 @@ export default class AppEngineAppSessionService extends BaseApi {
       update: "/app-engine/session",
       delete: "/app-engine/session",
       open: "/app-engine/session/open",
+      saveViewState: "/app-engine/session/save-view-state",
       saveDraft: "/app-engine/session/save-draft",
       submitOutput: "/app-engine/session/submit-output",
       cancel: "/app-engine/session/cancel",
@@ -21,6 +22,12 @@ export default class AppEngineAppSessionService extends BaseApi {
 
   async open(payload) {
     return super.post(payload, { endpoint: this.serviceEndpoints.open });
+  }
+
+  async saveViewState(payload) {
+    return super.patch(payload, {
+      endpoint: this.serviceEndpoints.saveViewState,
+    });
   }
 
   async saveDraft(payload) {
