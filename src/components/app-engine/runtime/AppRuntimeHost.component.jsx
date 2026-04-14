@@ -205,6 +205,8 @@ const AppRuntimeHost = ({
   onNavigate,
   onRouteChange,
   onStateCapture,
+  onRequestEscalation,
+  onRequestDeEscalation,
   className = '',
   renderLoading,
   renderError,
@@ -231,11 +233,14 @@ const AppRuntimeHost = ({
     setError(null);
 
     try {
+      const currentInput = inputPayloadRef.current;
       const response = await appSessionService.open({
         app_slug: appSlug,
         route_path: routePath || '/',
         launch_mode: launchMode,
-        input_payload: inputPayloadRef.current,
+        input_payload: currentInput,
+        parent_session_id: currentInput?._parent_session_id || '',
+        view_state: currentInput?._restored_view_state || null,
       });
 
       if (!response?.result) {
@@ -373,6 +378,49 @@ const AppRuntimeHost = ({
           }
           if (onClose) onClose();
         },
+        saveViewState: async (state) => {
+          if (!sessionData?.id || !appSessionService) return;
+          return appSessionService.saveViewState({
+            id: sessionData.id,
+            view_state: state,
+            route_path: state?.currentRoute,
+          });
+        },
+        requestEscalation: async (targetMode) => {
+          const currentState = stateProviderRef.current?.() ?? null;
+          if (currentState && sessionData?.id && appSessionService) {
+            appSessionService.saveViewState({
+              id: sessionData.id,
+              view_state: currentState,
+              route_path: currentState?.currentRoute,
+            }).catch(() => {});
+          }
+          if (onRequestEscalation) {
+            onRequestEscalation({
+              sessionId: sessionData.id,
+              targetMode,
+              viewState: currentState,
+              routePath: currentState?.currentRoute || routePath,
+            });
+          }
+        },
+        requestDeEscalation: async () => {
+          const currentState = stateProviderRef.current?.() ?? null;
+          if (currentState && sessionData?.id && appSessionService) {
+            appSessionService.saveViewState({
+              id: sessionData.id,
+              view_state: currentState,
+              route_path: currentState?.currentRoute,
+            }).catch(() => {});
+          }
+          if (onRequestDeEscalation) {
+            onRequestDeEscalation({
+              sessionId: sessionData.id,
+              viewState: currentState,
+              routePath: currentState?.currentRoute || routePath,
+            });
+          }
+        },
         registerStateProvider: (fn) => {
           stateProviderRef.current = fn;
         },
@@ -394,32 +442,6 @@ const AppRuntimeHost = ({
       setStatus('error');
     }
   };
-
-  useEffect(() => {
-    const handlePreEscalation = () => {
-      const hasProvider = !!stateProviderRef.current;
-      const currentState = hasProvider ? stateProviderRef.current() : null;
-      console.log('[AppRuntimeHost] pre-escalation received', { appSlug, hasProvider, currentState, sessionId: session?.id });
-
-      if (onStateCapture) {
-        onStateCapture({
-          sessionId: session?.id,
-          state: currentState,
-          routePath: currentState?.currentRoute || routePath,
-        });
-      }
-
-      if (currentState && session?.id && appSessionService) {
-        appSessionService.saveDraft({
-          id: session.id,
-          draft_payload: currentState,
-        }).catch(() => {});
-      }
-    };
-
-    window.addEventListener('sommatic:app:pre-escalation', handlePreEscalation);
-    return () => window.removeEventListener('sommatic:app:pre-escalation', handlePreEscalation);
-  }, [session, appSessionService, onStateCapture, routePath]);
 
   useEffect(() => {
     openSession();
