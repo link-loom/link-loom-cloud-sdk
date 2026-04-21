@@ -9,6 +9,11 @@ export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/con
 export { default as useAppStudio } from './features/app-engine/hooks/useAppStudio';
 export { default as useAppRuntime } from './features/app-engine/hooks/useAppRuntime';
 
+// App Engine Command Contributions — Command Center integration
+export { default as useAppEngineCommandContributions } from './features/app-contributions/useAppEngineCommandContributions.hook';
+export { compileContributionHandler } from './features/app-contributions/handler-compiler';
+export { resolveIconByName as resolveContributionIcon } from './features/app-contributions/icon-resolver';
+
 // Services
 export { default as AppEngineAppDefinitionService } from './services/app-engine/app-definition/app-definition.service';
 export { default as AppEngineAppVersionService } from './services/app-engine/app-version/app-version.service';
