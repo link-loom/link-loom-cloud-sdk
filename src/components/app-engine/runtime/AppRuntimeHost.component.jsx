@@ -466,6 +466,65 @@ const AppRuntimeHost = ({
     };
   }, [openSession]);
 
+  // DOM-event bridge: many app-side AppHeader components dispatch escalation
+  // requests as `sommatic:app:request-escalation` / `request-de-escalation`
+  // events instead of calling `sdk.requestEscalation(...)` directly. We listen
+  // here and filter by session id so only the host bound to that session
+  // reacts.
+  useEffect(() => {
+    const currentSessionId = session?.id;
+    if (!currentSessionId) return undefined;
+
+    const captureViewState = () => {
+      const currentState = stateProviderRef.current?.() ?? null;
+      if (currentState && appSessionService) {
+        appSessionService
+          .saveViewState({
+            id: currentSessionId,
+            view_state: currentState,
+            route_path: currentState?.currentRoute,
+          })
+          .catch(() => {});
+      }
+      return currentState;
+    };
+
+    const handleEscalation = (event) => {
+      const detail = event?.detail || {};
+      if (detail.sessionId && detail.sessionId !== currentSessionId) return;
+      const viewState = captureViewState();
+      if (onRequestEscalation) {
+        onRequestEscalation({
+          sessionId: currentSessionId,
+          targetMode: detail.targetMode,
+          viewState,
+          routePath: viewState?.currentRoute || routePath,
+        });
+      }
+    };
+
+    const handleDeEscalation = (event) => {
+      const detail = event?.detail || {};
+      if (detail.sessionId && detail.sessionId !== currentSessionId) return;
+      const viewState = captureViewState();
+      if (onRequestDeEscalation) {
+        onRequestDeEscalation({
+          sessionId: currentSessionId,
+          viewState,
+          routePath: viewState?.currentRoute || routePath,
+        });
+      }
+    };
+
+    window.addEventListener('sommatic:app:request-escalation', handleEscalation);
+    window.addEventListener('sommatic:app:request-de-escalation', handleDeEscalation);
+
+    return () => {
+      window.removeEventListener('sommatic:app:request-escalation', handleEscalation);
+      window.removeEventListener('sommatic:app:request-de-escalation', handleDeEscalation);
+    };
+  }, [session?.id, appSessionService, onRequestEscalation, onRequestDeEscalation, routePath]);
+
   const defaultLoadingContent = (
     <div
       style={{
