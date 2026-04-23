@@ -138,12 +138,16 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
                   color: "#374151",
                   textAlign: "center",
                   lineHeight: 1.2,
-                  maxWidth: "80px",
+                  maxWidth: "96px",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
+                  wordBreak: "keep-all",
+                  overflowWrap: "normal",
+                  whiteSpace: "normal",
+                  hyphens: "none",
                 }}
               >
                 {app.name}
