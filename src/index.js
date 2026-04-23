@@ -14,6 +14,11 @@ export { default as useAppEngineCommandContributions } from './features/app-cont
 export { compileContributionHandler } from './features/app-contributions/handler-compiler';
 export { resolveIconByName as resolveContributionIcon } from './features/app-contributions/icon-resolver';
 
+// App Engine Chain Contributions — cross-app output→input wiring
+export { default as useAppEngineChainContributions } from './features/app-contributions/useAppEngineChainContributions.hook';
+export { compileChainAppEmbed } from './features/app-contributions/chain-compiler';
+export { dispatchEmbedToCommandCenter } from './features/app-contributions/command-center-dispatch';
+
 // Services
 export { default as AppEngineAppDefinitionService } from './services/app-engine/app-definition/app-definition.service';
 export { default as AppEngineAppVersionService } from './services/app-engine/app-version/app-version.service';
