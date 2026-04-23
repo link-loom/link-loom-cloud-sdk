@@ -1,6 +1,6 @@
 {
   "name": "@link-loom/cloud-sdk",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "SDK for consuming Link Loom Cloud services. Service-to-service clients, React components, and app runtime contract.",
   "publishConfig": {
     "access": "public"
