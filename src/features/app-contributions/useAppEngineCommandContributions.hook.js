@@ -109,13 +109,20 @@ export default function useAppEngineCommandContributions({
     }
   }, [baseUrl, registerCommands, fetchOptions, compileItemsIntoCommands, clearPreviousRegistration]);
 
+  // Keep the latest fetchCatalog accessible without listing it as an effect
+  // dependency. Any reactive input that should re-trigger the fetch must be
+  // added explicitly to the effect's deps below — re-fetching whenever the
+  // callback identity changes is what caused an infinite request loop.
+  const fetchCatalogRef = useRef(fetchCatalog);
+  fetchCatalogRef.current = fetchCatalog;
+
   useEffect(() => {
     if (!enabled) {
       clearPreviousRegistration();
       return undefined;
     }
 
-    fetchCatalog();
+    fetchCatalogRef.current();
 
     return () => {
       if (abortRef.current) {
@@ -124,7 +131,7 @@ export default function useAppEngineCommandContributions({
       }
       clearPreviousRegistration();
     };
-  }, [enabled, fetchCatalog, clearPreviousRegistration]);
+  }, [enabled, baseUrl, clearPreviousRegistration]);
 
   return {
     isLoading,
