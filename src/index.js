@@ -85,6 +85,9 @@ export {
 // Support Context + Hook
 export { SupportSDKProvider, useSupportSDK } from './features/support/context/SupportSDK.context';
 
+// Forms Services
+export { default as FormsSubmissionService } from './services/forms/form-submission/form-submission.service';
+
 // Support Services
 export { default as SupportNamespaceService } from './services/support/support-namespace/support-namespace.service';
 export { default as SupportIssueCategoryService } from './services/support/support-issue-category/support-issue-category.service';
