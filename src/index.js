@@ -44,6 +44,11 @@ export { default as useSignals } from './hooks/useSignals';
 export { default as SignalConsumer } from './consumers/signal-consumer';
 export { default as SignalPublisher } from './publishers/signal-publisher';
 
+// ── Event Bus — durable messaging engine (topics, consumer groups, offsets) ──
+export { default as EventBusProducer } from './communication/event-bus/producer';
+export { default as EventBusConsumer } from './communication/event-bus/consumer';
+export { default as useEventBus } from './communication/event-bus/use-event-bus';
+
 // Shared UI Components + Utilities
 export { default as PinnedAppsWidget } from './components/app-engine/PinnedAppsWidget.component';
 export { default as DynamicMuiIcon } from './components/app-engine/DynamicMuiIcon.component';

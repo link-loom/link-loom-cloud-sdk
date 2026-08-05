@@ -71,6 +71,7 @@ module.exports = {
     'styled-components',
     '@monaco-editor/react',
     'axios',
+    'socket.io-client',
     '@veripass/react-sdk',
   ],
 };
