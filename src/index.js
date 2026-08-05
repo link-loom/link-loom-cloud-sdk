@@ -37,6 +37,13 @@ export {
   deleteEntityRecord,
 } from './services/utils/entityServiceAdapter';
 
+// ── Signals — realtime one-way event engine (send + receive) ──────
+export { default as BaseSignalStream } from './streams/base/base-signal-stream';
+export { default as SignalStream } from './streams/communication/signal/signal-stream';
+export { default as useSignals } from './hooks/useSignals';
+export { default as SignalConsumer } from './consumers/signal-consumer';
+export { default as SignalPublisher } from './publishers/signal-publisher';
+
 // Shared UI Components + Utilities
 export { default as PinnedAppsWidget } from './components/app-engine/PinnedAppsWidget.component';
 export { default as DynamicMuiIcon } from './components/app-engine/DynamicMuiIcon.component';
