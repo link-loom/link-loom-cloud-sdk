@@ -49,6 +49,44 @@ export { default as EventBusProducer } from './communication/event-bus/producer'
 export { default as EventBusConsumer } from './communication/event-bus/consumer';
 export { default as useEventBus } from './communication/event-bus/use-event-bus';
 
+// ── Monetization — products, plans, subscriptions and usage ─────────────────
+// The catalog and metering clients are framework-agnostic on purpose: most sites that render pricing
+// are static builds, so they use the global fetch and take every setting from their constructor.
+export { default as PricingCatalogClient } from './monetization/catalog/catalog-client';
+export { default as MeteringClient } from './monetization/metering/metering-client';
+export { QuotaExceededError } from './monetization/metering/metering-client';
+export { default as usePricingCatalog } from './monetization/catalog/use-pricing-catalog';
+export { default as useMetering } from './monetization/metering/use-metering';
+export { default as useEntitlement } from './monetization/metering/use-entitlement';
+export { default as useUsage } from './monetization/hooks/use-usage';
+export {
+  formatPrice,
+  formatCyclePrice,
+  formatUsage,
+  usagePercentage,
+  formatPeriod,
+} from './monetization/format/value-formatter';
+export { default as PricingTableComponent } from './monetization/components/pricing-table/PricingTable.component';
+export { default as PricingPlanCardComponent } from './monetization/components/pricing-table/PricingPlanCard.component';
+export { default as BillingSummaryComponent } from './monetization/components/billing/BillingSummary.component';
+export { default as UsagePanelComponent } from './monetization/components/billing/UsagePanel.component';
+// `mergeDefaults` is intentionally not re-exported here: App Engine already exports a helper by that
+// name, and two of them at the package root would collide. Hosts override copy through the `labels`
+// and `theme` props rather than merging by hand.
+export {
+  MONETIZATION_THEME,
+  PRICING_TABLE_DEFAULTS,
+  BILLING_SUMMARY_DEFAULTS,
+} from './monetization/defaults/monetization.defaults';
+export { default as PlatformProductService } from './monetization/services/product/product.service';
+export { default as MonetizationFeatureService } from './monetization/services/feature/feature.service';
+export { default as MonetizationPlanService } from './monetization/services/plan/plan.service';
+export { default as MonetizationPlanVersionService } from './monetization/services/plan-version/plan-version.service';
+export { default as MonetizationPlanCatalogService } from './monetization/services/plan-catalog/plan-catalog.service';
+export { default as MonetizationSubscriptionService } from './monetization/services/subscription/subscription.service';
+export { default as MonetizationUsageCounterService } from './monetization/services/usage-counter/usage-counter.service';
+export { default as MonetizationBillingRecordService } from './monetization/services/billing-record/billing-record.service';
+
 // Shared UI Components + Utilities
 export { default as PinnedAppsWidget } from './components/app-engine/PinnedAppsWidget.component';
 export { default as DynamicMuiIcon } from './components/app-engine/DynamicMuiIcon.component';

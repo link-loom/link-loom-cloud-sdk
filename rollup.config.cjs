@@ -7,7 +7,31 @@ const postcss = require('rollup-plugin-postcss');
 const json = require('@rollup/plugin-json');
 const peerDepsExternal = require('rollup-plugin-peer-deps-external');
 
-module.exports = {
+const sharedPlugins = () => [
+  peerDepsExternal(),
+  alias({
+    entries: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
+  }),
+  resolve({
+    browser: true,
+    preferBuiltins: false,
+    extensions: ['.mjs', '.js', '.jsx', '.json'],
+  }),
+  commonjs(),
+  babel({
+    babelHelpers: 'bundled',
+    exclude: 'node_modules/**',
+    extensions: ['.js', '.jsx'],
+  }),
+  postcss({
+    modules: false,
+    minimize: true,
+    sourceMap: true,
+  }),
+  json(),
+];
+
+const mainBundle = {
   input: 'src/index.js',
   output: [
     {
@@ -33,29 +57,7 @@ module.exports = {
     }
     warn(warning);
   },
-  plugins: [
-    peerDepsExternal(),
-    alias({
-      entries: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
-    }),
-    resolve({
-      browser: true,
-      preferBuiltins: false,
-      extensions: ['.mjs', '.js', '.jsx', '.json'],
-    }),
-    commonjs(),
-    babel({
-      babelHelpers: 'bundled',
-      exclude: 'node_modules/**',
-      extensions: ['.js', '.jsx'],
-    }),
-    postcss({
-      modules: false,
-      minimize: true,
-      sourceMap: true,
-    }),
-    json(),
-  ],
+  plugins: sharedPlugins(),
   external: [
     'react',
     'react/jsx-runtime',
@@ -75,3 +77,34 @@ module.exports = {
     '@veripass/react-sdk',
   ],
 };
+
+/**
+ * A second, dependency-free bundle for the monetization clients.
+ *
+ * Most of the sites that render pricing are static builds with no React in them. Importing the
+ * package root would drag the whole component library into one of those; this entry point carries
+ * nothing but `fetch` and `Intl`, so it can be consumed from a build script or a plain page.
+ */
+const monetizationBundle = {
+  input: 'src/monetization/index.js',
+  output: [
+    {
+      file: 'dist/monetization.cjs.cjs',
+      format: 'cjs',
+      sourcemap: true,
+      exports: 'named',
+      inlineDynamicImports: true,
+    },
+    {
+      file: 'dist/monetization.esm.js',
+      format: 'esm',
+      sourcemap: true,
+      inlineDynamicImports: true,
+    },
+  ],
+  onwarn: mainBundle.onwarn,
+  plugins: sharedPlugins(),
+  external: [],
+};
+
+module.exports = [mainBundle, monetizationBundle];
