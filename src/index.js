@@ -59,17 +59,27 @@ export { default as usePricingCatalog } from './monetization/catalog/use-pricing
 export { default as useMetering } from './monetization/metering/use-metering';
 export { default as useEntitlement } from './monetization/metering/use-entitlement';
 export { default as useUsage } from './monetization/hooks/use-usage';
+export { default as useBilling } from './monetization/hooks/use-billing';
+export { default as useInvoices } from './monetization/hooks/use-invoices';
+export { default as useBillingProfile } from './monetization/hooks/use-billing-profile';
+export { default as useBillingAccess } from './monetization/hooks/use-billing-access';
 export {
   formatPrice,
   formatCyclePrice,
   formatUsage,
   usagePercentage,
   formatPeriod,
+  formatMoney,
+  formatDate,
+  formatDateRange,
+  formatCountry,
 } from './monetization/format/value-formatter';
 export { default as PricingTableComponent } from './monetization/components/pricing-table/PricingTable.component';
 export { default as PricingPlanCardComponent } from './monetization/components/pricing-table/PricingPlanCard.component';
 export { default as BillingSummaryComponent } from './monetization/components/billing/BillingSummary.component';
 export { default as UsagePanelComponent } from './monetization/components/billing/UsagePanel.component';
+export { default as BillingCenterComponent, BILLING_SECTION_IDS } from './monetization/components/billing/center/BillingCenter.component';
+export { default as BillingAccessGateComponent } from './monetization/components/billing/access-gate/BillingAccessGate.component';
 // `mergeDefaults` is intentionally not re-exported here: App Engine already exports a helper by that
 // name, and two of them at the package root would collide. Hosts override copy through the `labels`
 // and `theme` props rather than merging by hand.
@@ -77,6 +87,12 @@ export {
   MONETIZATION_THEME,
   PRICING_TABLE_DEFAULTS,
   BILLING_SUMMARY_DEFAULTS,
+  BILLING_CENTER_DEFAULTS,
+  BILLING_ACCESS_DEFAULTS,
+  BILLING_SUMMARY_TRANSLATIONS,
+  BILLING_CENTER_TRANSLATIONS,
+  BILLING_ACCESS_TRANSLATIONS,
+  TAX_ID_TYPES_BY_COUNTRY,
 } from './monetization/defaults/monetization.defaults';
 export { default as PlatformProductService } from './monetization/services/product/product.service';
 export { default as MonetizationFeatureService } from './monetization/services/feature/feature.service';
@@ -86,6 +102,7 @@ export { default as MonetizationPlanCatalogService } from './monetization/servic
 export { default as MonetizationSubscriptionService } from './monetization/services/subscription/subscription.service';
 export { default as MonetizationUsageCounterService } from './monetization/services/usage-counter/usage-counter.service';
 export { default as MonetizationBillingRecordService } from './monetization/services/billing-record/billing-record.service';
+export { default as MonetizationBillingService } from './monetization/services/billing/billing.service';
 
 // Shared UI Components + Utilities
 export { default as PinnedAppsWidget } from './components/app-engine/PinnedAppsWidget.component';

@@ -147,3 +147,101 @@ export function formatPeriod(start, end, { locale } = {}) {
     return null;
   }
 }
+
+/**
+ * An amount with its currency, e.g. "$19.99 USD" or "$16,000 COP".
+ *
+ * The ISO code always follows the symbol: "$" alone is ambiguous across dollars and pesos, and a
+ * billing screen must never leave a customer guessing which one they owe.
+ */
+export function formatMoney(amountMinor, currency, exponent, { locale } = {}) {
+  const digits = Number(exponent) || 0;
+  const value = (Number(amountMinor) || 0) / 10 ** digits;
+
+  if (!currency) {
+    return value.toFixed(digits);
+  }
+
+  try {
+    const formatted = new Intl.NumberFormat(resolveLocale(locale), {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value);
+
+    return `${formatted} ${currency}`;
+  } catch (error) {
+    return `${value.toFixed(digits)} ${currency}`;
+  }
+}
+
+/**
+ * A calendar date, e.g. "Jan 15, 2026". Billing dates are UTC instants, so they are shown in UTC —
+ * otherwise a customer west of Greenwich sees the day before.
+ */
+export function formatDate(value, { locale } = {}) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  try {
+    return new Intl.DateTimeFormat(resolveLocale(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(date);
+  } catch (error) {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+export function formatDateRange(start, end, { locale } = {}) {
+  const from = formatDate(start, { locale });
+  const to = formatDate(end, { locale });
+
+  if (!from) {
+    return to;
+  }
+
+  return to ? `${from} – ${to}` : from;
+}
+
+/**
+ * A country's name from its ISO 3166 code, in the reader's language.
+ */
+export function formatCountry(code, { locale } = {}) {
+  if (!code) {
+    return "";
+  }
+
+  try {
+    return (
+      new Intl.DisplayNames([resolveLocale(locale)], { type: "region" }).of(
+        code,
+      ) || code
+    );
+  } catch (error) {
+    return code;
+  }
+}
+
+/**
+ * Fill "{name}" placeholders in customer copy. Unknown placeholders are left as they are, so a label
+ * override with a typo is visible instead of silently blank.
+ */
+export function fillTemplate(text, values = {}) {
+  return String(text || "").replace(/\{(\w+)\}/g, (placeholder, key) =>
+    values[key] === undefined || values[key] === null
+      ? placeholder
+      : String(values[key]),
+  );
+}

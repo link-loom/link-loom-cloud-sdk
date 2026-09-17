@@ -5,7 +5,9 @@ import useUsage from "../../hooks/use-usage";
 import { formatPrice, formatPeriod } from "../../format/value-formatter";
 import {
   BILLING_SUMMARY_DEFAULTS,
+  BILLING_SUMMARY_TRANSLATIONS,
   MONETIZATION_THEME,
+  localizeDefaults,
   mergeDefaults,
 } from "../../defaults/monetization.defaults";
 
@@ -54,7 +56,14 @@ function BillingSummaryComponent({
   // -----------------------------------------------------
   // 4. Configs / Constants
   // -----------------------------------------------------
-  const copy = mergeDefaults(BILLING_SUMMARY_DEFAULTS, labels);
+  const copy = mergeDefaults(
+    localizeDefaults(
+      BILLING_SUMMARY_DEFAULTS,
+      BILLING_SUMMARY_TRANSLATIONS,
+      locale,
+    ),
+    labels,
+  );
   const palette = mergeDefaults(MONETIZATION_THEME, theme);
   const sectionId = (key) => `${sectionIdPrefix}-${SECTION_IDS[key] || key}`;
   const shows = (key) => sections.includes(key);

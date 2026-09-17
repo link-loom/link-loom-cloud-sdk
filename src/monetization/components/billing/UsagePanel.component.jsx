@@ -4,7 +4,9 @@ import { LinearProgress, Typography } from "@mui/material";
 import { formatUsage, usagePercentage } from "../../format/value-formatter";
 import {
   BILLING_SUMMARY_DEFAULTS,
+  BILLING_SUMMARY_TRANSLATIONS,
   MONETIZATION_THEME,
+  localizeDefaults,
   mergeDefaults,
 } from "../../defaults/monetization.defaults";
 
@@ -25,7 +27,14 @@ function UsagePanelComponent({
   renderChart,
   className = "",
 }) {
-  const copy = mergeDefaults(BILLING_SUMMARY_DEFAULTS, labels);
+  const copy = mergeDefaults(
+    localizeDefaults(
+      BILLING_SUMMARY_DEFAULTS,
+      BILLING_SUMMARY_TRANSLATIONS,
+      locale,
+    ),
+    labels,
+  );
   const palette = mergeDefaults(MONETIZATION_THEME, theme);
 
   if (!metrics.length) {
@@ -56,6 +65,9 @@ function UsagePanelComponent({
           Number.isFinite(metric.limit) &&
           Number(metric.used) > Number(metric.limit);
         const isClose = percentage !== null && percentage >= 80 && !isOver;
+        // Pay-per-use grants have no ceiling on purpose: they are counted and billed, not capped.
+        const isPayPerUse =
+          metric.mode === "addon" || metric.value_type === "metered";
 
         return (
           <article
@@ -73,17 +85,19 @@ function UsagePanelComponent({
                 display: "block",
               }}
             >
-              {metric.feature_slug || metric.metric}
+              {metric.name || metric.feature_slug || metric.metric}
             </Typography>
 
             <Typography
               variant="h6"
               sx={{ fontWeight: 700, color: palette.textPrimary, mt: 0.25 }}
             >
-              {formatUsage(metric, {
-                locale,
-                unlimitedLabel: copy.unlimitedLabel,
-              })}
+              {isPayPerUse
+                ? `${new Intl.NumberFormat(locale).format(Number(metric.used) || 0)} ${metric.unit || ""}`.trim()
+                : formatUsage(metric, {
+                    locale,
+                    unlimitedLabel: copy.unlimitedLabel,
+                  })}
             </Typography>
 
             {percentage !== null ? (
@@ -106,7 +120,7 @@ function UsagePanelComponent({
                 variant="caption"
                 sx={{ color: palette.textMuted, display: "block", mt: 1 }}
               >
-                {copy.unlimitedLabel}
+                {isPayPerUse ? copy.payPerUseLabel : copy.unlimitedLabel}
               </Typography>
             )}
 
