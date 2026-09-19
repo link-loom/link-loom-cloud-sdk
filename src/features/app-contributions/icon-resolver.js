@@ -1,6 +1,6 @@
 import React from 'react';
 import * as MuiIcons from '@mui/icons-material';
-import BoltIcon from '@mui/icons-material/Bolt';
+import { Bolt as BoltIcon } from '@mui/icons-material';
 
 /**
  * Resolve an MUI icon name (e.g. "Gavel", "Calculate", "TableChart") to a

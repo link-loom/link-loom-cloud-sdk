@@ -9,6 +9,40 @@ export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/con
 export { default as useAppStudio } from './features/app-engine/hooks/useAppStudio';
 export { default as useAppRuntime } from './features/app-engine/hooks/useAppRuntime';
 
+// App Engine runtime — identity, offline data, files, directory, notifications and app kit hooks
+export { default as AppIcon } from './components/app-engine/AppIcon.component';
+export {
+  default as AppNotificationsBridge,
+  APP_NOTIFICATION_EVENT,
+  APP_NOTIFICATION_OPEN_EVENT,
+  APP_NOTIFICATION_ACTION_EVENT,
+  requestDesktopNotificationPermission,
+  useDesktopNotificationPermission,
+} from './components/app-engine/notifications/AppNotificationsBridge.component';
+export {
+  CALENDAR_REMINDER_SIGNAL,
+  notificationSignalNames,
+  signalToNotification,
+  buildAppRuntimeDeepLink,
+} from './components/app-engine/notifications/app-notification-signals';
+export { default as VeripassLogo } from './components/app-engine/runtime/identity/VeripassLogo.component';
+export { clearAppDataCache, VERIPASS_LOGOUT_EVENT } from './features/app-engine/runtime/data/data-cache';
+export { default as AppDataClient } from './features/app-engine/runtime/data/data-client';
+export { applyPatchOperations, validatePatchOperations, PATCH_OPERATIONS } from './features/app-engine/runtime/data/data-patch';
+export { createLoomIdentityHeaders } from './features/app-engine/runtime/shared/loom-identity.client';
+export {
+  RUNTIME_MODULE_LOADERS,
+  STATIC_RUNTIME_MODULES,
+  ensureRuntimeModules,
+} from './components/app-engine/runtime/runtime-modules/runtime-modules.registry';
+export { default as useAppData } from './features/app-engine/hooks/useAppData';
+export { default as useAutosave } from './features/app-engine/hooks/useAutosave';
+export { default as useRecents } from './features/app-engine/hooks/useRecents';
+export { default as useAppSettings } from './features/app-engine/hooks/useAppSettings';
+export { default as useConnectivity } from './features/app-engine/hooks/useConnectivity';
+export { default as usePresence } from './features/app-engine/hooks/usePresence';
+export { default as useStorageUsage } from './features/app-engine/hooks/useStorageUsage';
+
 // App Engine Command Contributions — Command Center integration
 export { default as useAppEngineCommandContributions } from './features/app-contributions/useAppEngineCommandContributions.hook';
 export { compileContributionHandler } from './features/app-contributions/handler-compiler';
@@ -162,3 +196,17 @@ export { default as SupportCaseService } from './services/support/support-case/s
 export { default as SupportCaseMessageService } from './services/support/support-case-message/support-case-message.service';
 export { default as SupportIncidentService } from './services/support/support-incident/support-incident.service';
 export { default as SupportQuickGuideService } from './services/support/support-quick-guide/support-quick-guide.service';
+
+// Storage — Finder-style browser (operator console and user Files) and its client
+export { default as StorageBrowser, STORAGE_VIEWS } from './components/storage/browser/StorageBrowser.component';
+export { STORAGE_BROWSER_LABELS } from './components/storage/defaults/storage.labels';
+export { formatFileSize } from './components/storage/shared/storage.helpers';
+// What a person may do with one object — the rules every file surface reads instead of inventing.
+export { storageCapabilities, selectionCapabilities, STORAGE_VERBS } from './components/storage/shared/storage.capabilities';
+export { default as StorageShareDialog } from './components/storage/dialogs/StorageShareDialog.component';
+export { default as StorageNameDialog } from './components/storage/dialogs/StorageNameDialog.component';
+export { default as StorageMoveDialog } from './components/storage/dialogs/StorageMoveDialog.component';
+export { default as StorageDeleteDialog } from './components/storage/dialogs/StorageDeleteDialog.component';
+export { default as StorageObjectService } from './services/storage/storage-object/storage-object.service';
+export { default as FilePickerDialog, FILE_PICKER_LABELS } from './components/storage/picker/FilePickerDialog.component';
+export { createEmojiPicker, EMOJI_DATA } from './components/emoji/emoji-picker.client';

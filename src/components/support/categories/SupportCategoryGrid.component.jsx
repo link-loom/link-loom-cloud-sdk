@@ -1,17 +1,19 @@
 import React from 'react';
 import styled from 'styled-components';
-import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
-import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
-import IntegrationInstructionsOutlinedIcon from '@mui/icons-material/IntegrationInstructionsOutlined';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
-import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
-import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
-import DevicesOutlinedIcon from '@mui/icons-material/DevicesOutlined';
-import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
-import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
+import {
+  BugReportOutlined as BugReportOutlinedIcon,
+  SettingsOutlined as SettingsOutlinedIcon,
+  SecurityOutlined as SecurityOutlinedIcon,
+  StorageOutlined as StorageOutlinedIcon,
+  IntegrationInstructionsOutlined as IntegrationInstructionsOutlinedIcon,
+  HelpOutline as HelpOutlineIcon,
+  SpeedOutlined as SpeedOutlinedIcon,
+  AccountBalanceOutlined as AccountBalanceOutlinedIcon,
+  CreditCardOutlined as CreditCardOutlinedIcon,
+  DevicesOutlined as DevicesOutlinedIcon,
+  VpnKeyOutlined as VpnKeyOutlinedIcon,
+  AutoFixHighOutlined as AutoFixHighOutlinedIcon,
+} from '@mui/icons-material';
 import { SUPPORT_THEME } from '../defaults/support.theme';
 import {
   SUPPORT_CATEGORY_GRID_DEFAULTS,

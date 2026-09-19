@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
+import { AccessTime as AccessTimeIcon, MenuBookOutlined as MenuBookOutlinedIcon } from '@mui/icons-material';
 import { SUPPORT_THEME } from '../defaults/support.theme';
 import BackButton from '../../shared/BackButton.component';
 

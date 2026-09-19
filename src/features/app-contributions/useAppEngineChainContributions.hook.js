@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { compileChainAppEmbed } from './chain-compiler';
 import { dispatchEmbedToCommandCenter } from './command-center-dispatch';
+import {
+  DEFAULT_CATALOG_TIMEOUT_MS,
+  fetchContributionCatalog,
+  getCatalogRetryDelay,
+  isCatalogRequestCanceled,
+  isRetryableCatalogError,
+} from './contribution-catalog.client';
 
 const CATALOG_PATH = '/app-engine/definition/chain-contributions/';
 const LOG_PREFIX = '[CC-CHAIN hook]';
@@ -21,6 +27,8 @@ const LOG_PREFIX = '[CC-CHAIN hook]';
  *   by `useAppEngineCommandContributions`).
  * - enabled: gate registration; when false the listener is not installed.
  * - fetchOptions: optional axios config.
+ * - timeoutMs: request ceiling. On timeout or failure the last known chains
+ *   keep routing outputs and the fetch is retried later with backoff.
  *
  * Returns: `{ isLoading, error, items, refetch }`.
  */
@@ -28,6 +36,7 @@ export default function useAppEngineChainContributions({
   baseUrl,
   enabled = true,
   fetchOptions,
+  timeoutMs = DEFAULT_CATALOG_TIMEOUT_MS,
 } = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -35,10 +44,20 @@ export default function useAppEngineChainContributions({
   const chainsRef = useRef([]);
   const abortRef = useRef(null);
   const listenerInstalledRef = useRef(false);
+  const retryTimerRef = useRef(null);
+  const failedAttemptsRef = useRef(0);
+  const fetchCatalogRef = useRef(null);
+
+  const clearRetryTimer = useCallback(() => {
+    if (!retryTimerRef.current) return;
+    clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+  }, []);
 
   const fetchCatalog = useCallback(async () => {
     if (!baseUrl) return;
 
+    clearRetryTimer();
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -49,13 +68,15 @@ export default function useAppEngineChainContributions({
     setError(null);
 
     try {
-      const url = `${String(baseUrl).replace(/\/+$/, '')}${CATALOG_PATH}`;
-      const response = await axios.get(url, {
-        signal: controller.signal,
-        ...(fetchOptions || {}),
+      const catalogItems = await fetchContributionCatalog({
+        baseUrl,
+        path: CATALOG_PATH,
+        controller,
+        timeoutMs,
+        fetchOptions,
       });
 
-      const catalogItems = response?.data?.result?.items || response?.data?.items || [];
+      failedAttemptsRef.current = 0;
       setItems(catalogItems);
 
       const flatChains = [];
@@ -67,12 +88,26 @@ export default function useAppEngineChainContributions({
       chainsRef.current = flatChains;
       console.log(`${LOG_PREFIX} catalog loaded with ${flatChains.length} chain(s)`, flatChains);
     } catch (fetchError) {
-      if (fetchError?.name === 'CanceledError' || fetchError?.name === 'AbortError') return;
+      if (isCatalogRequestCanceled(fetchError)) return;
+
+      // Keep the last known chains so app outputs keep routing while the catalog is unavailable.
       setError(fetchError);
+      if (!isRetryableCatalogError(fetchError)) return;
+
+      failedAttemptsRef.current += 1;
+      retryTimerRef.current = setTimeout(
+        () => fetchCatalogRef.current?.(),
+        getCatalogRetryDelay(failedAttemptsRef.current),
+      );
     } finally {
-      setIsLoading(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsLoading(false);
+      }
     }
-  }, [baseUrl, fetchOptions]);
+  }, [baseUrl, fetchOptions, timeoutMs, clearRetryTimer]);
+
+  fetchCatalogRef.current = fetchCatalog;
 
   useEffect(() => {
     if (!enabled) {
@@ -80,10 +115,12 @@ export default function useAppEngineChainContributions({
       return undefined;
     }
 
+    failedAttemptsRef.current = 0;
     fetchCatalog();
 
     if (listenerInstalledRef.current) {
       return () => {
+        clearRetryTimer();
         if (abortRef.current) {
           abortRef.current.abort();
           abortRef.current = null;
@@ -149,13 +186,14 @@ export default function useAppEngineChainContributions({
     return () => {
       window.removeEventListener('sommatic:app:output', handleOutput);
       listenerInstalledRef.current = false;
+      clearRetryTimer();
       if (abortRef.current) {
         abortRef.current.abort();
         abortRef.current = null;
       }
       chainsRef.current = [];
     };
-  }, [enabled, fetchCatalog]);
+  }, [enabled, fetchCatalog, clearRetryTimer]);
 
   return {
     isLoading,

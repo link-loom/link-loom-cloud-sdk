@@ -1,22 +1,27 @@
 import { useEffect, useRef } from "react";
-import SignalStream from "../streams/communication/signal/signal-stream";
+import AppRealtimeHub from "../features/app-engine/runtime/realtime/app-realtime.hub";
 
 /**
  * useSignals — subscribe a browser client to Link Loom Cloud Signals (live, one-way).
  *
  * @param {object} options
  * @param {string} options.baseUrl - LLC backend base URL (e.g. import.meta.env.VITE_APP_BACKEND_URL)
- * @param {string[]} options.channels - channels to subscribe to (fixed slugs and/or dynamic like "user:U1")
+ * @param {string[]} options.channels - channels to subscribe to (fixed slugs and/or dynamic like "user:<veripass_identity>").
+ *   `user:` and `app-data:` channels require identity: pass `accessToken` (and `appSessionId` for app-data channels).
  * @param {string} [options.subjectType] - "user" | "system" (informational, permissive v1)
  * @param {string} [options.subjectId]
  * @param {string} [options.platform]
  * @param {string} [options.organizationId] - owning organization; lets the admin "Connected clients" view scope by org
+ * @param {string} [options.accessToken] - Veripass user JWT, sent as `access_token` (EventSource cannot send headers)
+ * @param {string} [options.appSessionId] - App Engine session id, sent as `app_session_id`
  * @param {string[]} options.signals - the signal names to listen for (e.g. ["session.revoke"]). Required over the
  *   browser transport: the native EventSource only delivers NAMED events to a matching listener and cannot
  *   wildcard, so onSignal fires once per named signal. For wildcard "receive everything" in Node, use SignalConsumer.
  * @param {boolean} [options.enabled=true]
  * @param {(signalName: string, data: any, event: MessageEvent) => void} options.onSignal
- * @param {number} [options.reconnectMs]
+ *
+ * Connections are shared page-wide with the app runtime (one SSE connection per identical stream params),
+ * with exponential backoff on errors; the returned ref holds the consumer (`ref.current.connected`).
  */
 export default function useSignals({
   baseUrl,
@@ -25,10 +30,11 @@ export default function useSignals({
   subjectId,
   platform,
   organizationId,
+  accessToken,
+  appSessionId,
   signals = [],
   enabled = true,
   onSignal,
-  reconnectMs,
 } = {}) {
   const streamRef = useRef(null);
   const onSignalRef = useRef(onSignal);
@@ -42,24 +48,21 @@ export default function useSignals({
       return undefined;
     }
 
-    const stream = new SignalStream({ baseUrl, reconnectMs });
-    stream.setParams({
-      channels: channelsKey,
-      subject_type: subjectType,
-      subject_id: subjectId,
-      platform,
-      organization_id: organizationId,
+    const hub = new AppRealtimeHub({
+      baseUrl,
+      getParams: () => ({
+        subject_type: subjectType,
+        subject_id: subjectId,
+        platform,
+        organization_id: organizationId,
+        access_token: accessToken,
+        app_session_id: appSessionId,
+      }),
     });
 
     const names = signalsKey ? signalsKey.split(",") : [];
 
-    if (names.length) {
-      for (const name of names) {
-        stream.on(name, (data, event) =>
-          onSignalRef.current?.(name, data, event),
-        );
-      }
-    } else if (typeof console !== "undefined") {
+    if (!names.length && typeof console !== "undefined") {
       // The native EventSource only routes NAMED events to a matching listener — it cannot wildcard —
       // so without explicit `signals` names nothing would be received. Warn instead of failing silently.
       console.warn(
@@ -68,11 +71,14 @@ export default function useSignals({
       );
     }
 
-    stream.connect();
-    streamRef.current = stream;
+    for (const name of names) {
+      hub.on(name, (data, signalName, event) => onSignalRef.current?.(signalName, data, event));
+    }
+    channelsKey.split(",").forEach((channel) => hub.addChannel(channel));
+    streamRef.current = hub;
 
     return () => {
-      stream.disconnect();
+      hub.dispose();
       streamRef.current = null;
     };
   }, [
@@ -82,9 +88,10 @@ export default function useSignals({
     subjectId,
     platform,
     organizationId,
+    accessToken,
+    appSessionId,
     signalsKey,
     enabled,
-    reconnectMs,
   ]);
 
   return streamRef;

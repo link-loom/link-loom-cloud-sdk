@@ -4,7 +4,7 @@ import { Typography, CircularProgress } from "@mui/material";
 import styled from "styled-components";
 import { useAppEngineSDK } from "@/features/app-engine/context/AppEngineSDK.context";
 import { useAuth } from "@veripass/react-sdk";
-import DynamicMuiIcon from "@/components/app-engine/DynamicMuiIcon.component";
+import AppIcon from "@/components/app-engine/AppIcon.component";
 import { getCategoryIcon, getCategoryTint } from "@/components/app-engine/categoryIcon.util";
 
 const WidgetContainer = styled.div`
@@ -128,7 +128,13 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <DynamicMuiIcon iconName={app.icon} fallbackIcon={CategoryIcon} sx={{ fontSize: 22, color: tint.iconColor }} />
+                  <AppIcon
+                    appDefinition={app}
+                    size={22}
+                    baseUrl={appDefinitionService?.serviceEndpoints?.baseUrl}
+                    fallbackIcon={CategoryIcon}
+                    sx={{ color: tint.iconColor }}
+                  />
                 )}
               </IconBox>
               <Typography

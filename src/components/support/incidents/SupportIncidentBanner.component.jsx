@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import CheckIcon from '@mui/icons-material/Check';
+import { ArrowForward as ArrowForwardIcon, Check as CheckIcon } from '@mui/icons-material';
 import { SUPPORT_THEME } from '../defaults/support.theme';
 import {
   SUPPORT_INCIDENT_BANNER_DEFAULTS,

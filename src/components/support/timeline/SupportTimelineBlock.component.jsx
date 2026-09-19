@@ -5,10 +5,12 @@ import remarkGfm from 'remark-gfm';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import PersonIcon from '@mui/icons-material/Person';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import {
+  AttachFile as AttachFileIcon,
+  Person as PersonIcon,
+  SmartToy as SmartToyIcon,
+  VisibilityOutlined as VisibilityOutlinedIcon,
+} from '@mui/icons-material';
 import { SUPPORT_THEME } from '../defaults/support.defaults';
 
 /* ── Helpers ──────────────────────────────────────────────────────── */

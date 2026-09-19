@@ -5,13 +5,15 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
-import SendIcon from '@mui/icons-material/Send';
-import LanguageIcon from '@mui/icons-material/Language';
-import ComputerIcon from '@mui/icons-material/Computer';
-import PersonIcon from '@mui/icons-material/Person';
-import BusinessIcon from '@mui/icons-material/Business';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
+import {
+  Send as SendIcon,
+  Language as LanguageIcon,
+  Computer as ComputerIcon,
+  Person as PersonIcon,
+  Business as BusinessIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  MenuBook as MenuBookIcon,
+} from '@mui/icons-material';
 import {
   SUPPORT_CASE_FORM_DEFAULTS,
   mergeDefaults,

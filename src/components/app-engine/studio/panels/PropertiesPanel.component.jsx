@@ -9,7 +9,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import { ChevronLeft as ChevronLeftIcon } from '@mui/icons-material';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 function parseRoutesFromFileTree(fileTree, openFiles) {

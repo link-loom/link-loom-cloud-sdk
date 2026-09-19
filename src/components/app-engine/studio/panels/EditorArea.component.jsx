@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
+import { Close as CloseIcon } from '@mui/icons-material';
 import Editor from '@monaco-editor/react';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 

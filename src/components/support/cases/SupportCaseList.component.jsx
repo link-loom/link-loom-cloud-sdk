@@ -7,12 +7,14 @@ import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
-import SearchIcon from '@mui/icons-material/Search';
-import AddIcon from '@mui/icons-material/Add';
-import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import DoNotDisturbAltOutlinedIcon from '@mui/icons-material/DoNotDisturbAltOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import {
+  Search as SearchIcon,
+  Add as AddIcon,
+  AssignmentOutlined as AssignmentOutlinedIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  DoNotDisturbAltOutlined as DoNotDisturbAltOutlinedIcon,
+  DeleteOutline as DeleteOutlineIcon,
+} from '@mui/icons-material';
 import { DataGrid, StatusSelector, PopUp } from '@link-loom/react-sdk';
 import SupportEmptyState from '../shared/SupportEmptyState.component';
 import BackButton from '../../shared/BackButton.component';

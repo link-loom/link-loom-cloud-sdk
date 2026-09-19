@@ -5,8 +5,7 @@ import Tab from "@mui/material/Tab";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
-import SearchIcon from "@mui/icons-material/Search";
-import AddIcon from "@mui/icons-material/Add";
+import { Search as SearchIcon, Add as AddIcon } from "@mui/icons-material";
 import { fetchMultipleEntities } from "../../../services/utils/entityServiceAdapter";
 import AppMarketplaceCard from "./AppMarketplaceCard.component";
 import {
@@ -247,6 +246,7 @@ const AppMarketplaceGrid = ({
   };
 
   const canPin = Boolean(appPreferenceService && user.identity);
+  const iconBaseUrl = appDefinitionService?.serviceEndpoints?.baseUrl;
 
   const renderAppCard = (app) => {
     if (renderCard) {
@@ -258,6 +258,7 @@ const AppMarketplaceGrid = ({
         onDelete: handleDeleteApp,
         onPin: canPin ? handlePinApp : undefined,
         onFavorite: canPin ? handleFavoriteApp : undefined,
+        iconBaseUrl,
       });
     }
 
@@ -271,6 +272,7 @@ const AppMarketplaceGrid = ({
         onDelete={handleDeleteApp}
         onPin={canPin ? handlePinApp : undefined}
         onFavorite={canPin ? handleFavoriteApp : undefined}
+        iconBaseUrl={iconBaseUrl}
       />
     );
   };

@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
+import { Close as CloseIcon } from "@mui/icons-material";
 import Typography from "@mui/material/Typography";
 import { updateEntityRecord } from "../../../services/utils/entityServiceAdapter";
 import StudioToolbar from "./panels/StudioToolbar.component";

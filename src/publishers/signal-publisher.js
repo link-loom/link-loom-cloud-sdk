@@ -7,7 +7,10 @@ import BaseApi from "../services/base/api.service";
  *
  * Usage:
  *   const publisher = new SignalPublisher({ apiKey, baseUrl });
- *   await publisher.send("user:U1", "session.revoke", { reason: "admin_forced" });
+ *   await publisher.send("user:<veripass_identity>", "session.revoke", { reason: "admin_forced" });
+ *
+ * `user:` and `app-data:` channels require identity or a valid LLC api-key: server senders use the api-key and
+ * may send any signal name; apps sending with identity are limited to ephemeral `typing` and `presence`.
  */
 export default class SignalPublisher extends BaseApi {
   constructor(args) {

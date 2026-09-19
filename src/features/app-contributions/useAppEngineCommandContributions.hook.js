@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { compileContributionHandler } from './handler-compiler';
 import { resolveIconByName } from './icon-resolver';
+import {
+  DEFAULT_CATALOG_TIMEOUT_MS,
+  fetchContributionCatalog,
+  getCatalogRetryDelay,
+  isCatalogRequestCanceled,
+  isRetryableCatalogError,
+} from './contribution-catalog.client';
 
 const CATALOG_PATH = '/app-engine/definition/command-contributions/';
 
@@ -20,6 +26,8 @@ const CATALOG_PATH = '/app-engine/definition/command-contributions/';
  * - registry: optional command receipt registry, from useCommandCenter.
  * - enabled: gate registration (e.g. wait until the user is authenticated).
  * - fetchOptions: optional axios config merged into the GET request.
+ * - timeoutMs: request ceiling. On timeout or failure the last registered
+ *   commands stay in place and the fetch is retried later with backoff.
  *
  * Returns: { isLoading, error, items, refetch }.
  */
@@ -29,12 +37,15 @@ export default function useAppEngineCommandContributions({
   registry,
   enabled = true,
   fetchOptions,
+  timeoutMs = DEFAULT_CATALOG_TIMEOUT_MS,
 } = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [items, setItems] = useState([]);
   const unregisterRef = useRef(null);
   const abortRef = useRef(null);
+  const retryTimerRef = useRef(null);
+  const failedAttemptsRef = useRef(0);
 
   const compileItemsIntoCommands = useCallback((catalogItems) => {
     const compiled = [];
@@ -70,9 +81,16 @@ export default function useAppEngineCommandContributions({
     }
   }, []);
 
+  const clearRetryTimer = useCallback(() => {
+    if (!retryTimerRef.current) return;
+    clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+  }, []);
+
   const fetchCatalog = useCallback(async () => {
     if (!baseUrl || typeof registerCommands !== 'function') return;
 
+    clearRetryTimer();
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -83,13 +101,15 @@ export default function useAppEngineCommandContributions({
     setError(null);
 
     try {
-      const url = `${String(baseUrl).replace(/\/+$/, '')}${CATALOG_PATH}`;
-      const response = await axios.get(url, {
-        signal: controller.signal,
-        ...(fetchOptions || {}),
+      const catalogItems = await fetchContributionCatalog({
+        baseUrl,
+        path: CATALOG_PATH,
+        controller,
+        timeoutMs,
+        fetchOptions,
       });
 
-      const catalogItems = response?.data?.result?.items || response?.data?.items || [];
+      failedAttemptsRef.current = 0;
       setItems(catalogItems);
 
       const compiled = compileItemsIntoCommands(catalogItems);
@@ -102,12 +122,32 @@ export default function useAppEngineCommandContributions({
         }
       }
     } catch (fetchError) {
-      if (fetchError?.name === 'CanceledError' || fetchError?.name === 'AbortError') return;
+      if (isCatalogRequestCanceled(fetchError)) return;
+
+      // Keep the last registered commands; the Command Center stays usable while the catalog is unavailable.
       setError(fetchError);
+      if (!isRetryableCatalogError(fetchError)) return;
+
+      failedAttemptsRef.current += 1;
+      retryTimerRef.current = setTimeout(
+        () => fetchCatalogRef.current(),
+        getCatalogRetryDelay(failedAttemptsRef.current),
+      );
     } finally {
-      setIsLoading(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsLoading(false);
+      }
     }
-  }, [baseUrl, registerCommands, fetchOptions, compileItemsIntoCommands, clearPreviousRegistration]);
+  }, [
+    baseUrl,
+    registerCommands,
+    fetchOptions,
+    timeoutMs,
+    compileItemsIntoCommands,
+    clearPreviousRegistration,
+    clearRetryTimer,
+  ]);
 
   // Keep the latest fetchCatalog accessible without listing it as an effect
   // dependency. Any reactive input that should re-trigger the fetch must be
@@ -122,16 +162,18 @@ export default function useAppEngineCommandContributions({
       return undefined;
     }
 
+    failedAttemptsRef.current = 0;
     fetchCatalogRef.current();
 
     return () => {
+      clearRetryTimer();
       if (abortRef.current) {
         abortRef.current.abort();
         abortRef.current = null;
       }
       clearPreviousRegistration();
     };
-  }, [enabled, baseUrl, clearPreviousRegistration]);
+  }, [enabled, baseUrl, clearPreviousRegistration, clearRetryTimer]);
 
   return {
     isLoading,

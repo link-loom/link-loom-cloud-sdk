@@ -4,10 +4,12 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
-import BuildIcon from '@mui/icons-material/Build';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import PublishIcon from '@mui/icons-material/Publish';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import {
+  Build as BuildIcon,
+  Visibility as VisibilityIcon,
+  Publish as PublishIcon,
+  PlayArrow as PlayArrowIcon,
+} from '@mui/icons-material';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const RunPanel = ({

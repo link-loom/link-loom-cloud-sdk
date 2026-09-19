@@ -20,8 +20,8 @@ export default class AppEngineAppSessionService extends BaseApi {
     };
   }
 
-  async open(payload) {
-    return super.post(payload, { endpoint: this.serviceEndpoints.open });
+  async open(payload, settings = {}) {
+    return super.post(payload, { ...settings, endpoint: this.serviceEndpoints.open });
   }
 
   async saveViewState(payload) {

@@ -5,6 +5,29 @@
  * listeners. Auto-reconnects. Browser-only (uses the native EventSource); for Node/servers use
  * SignalConsumer instead.
  */
+// Flattens nested params as `key[sub]=value` and arrays as comma-separated values.
+export const buildSignalStreamUrl = (endpoint, params = {}) => {
+  const parts = [];
+
+  const flatten = (obj, prefix) => {
+    for (const [key, val] of Object.entries(obj)) {
+      const fullKey = prefix ? `${prefix}[${key}]` : key;
+
+      if (val && typeof val === "object" && !Array.isArray(val)) {
+        flatten(val, fullKey);
+      } else if (Array.isArray(val)) {
+        parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(val.join(","))}`);
+      } else if (val != null) {
+        parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(val)}`);
+      }
+    }
+  };
+
+  flatten(params || {});
+
+  return parts.length ? `${endpoint}?${parts.join("&")}` : endpoint;
+};
+
 export default class BaseSignalStream {
   constructor(args) {
     this.streamEndpoints = {
@@ -19,6 +42,13 @@ export default class BaseSignalStream {
     this._reconnectMs = args?.reconnectMs || 3000;
     this._reconnectTimer = null;
     this._params = {};
+    this._openListeners = new Set();
+  }
+
+  /** Register a callback fired every time the SSE connection opens (first connect and reconnects). */
+  onOpen(callback) {
+    this._openListeners.add(callback);
+    return () => this._openListeners.delete(callback);
   }
 
   /** Set query parameters for the stream URL (channels, subject, platform, token…). */
@@ -27,26 +57,7 @@ export default class BaseSignalStream {
   }
 
   #buildUrl() {
-    const parts = [];
-
-    const flatten = (obj, prefix) => {
-      for (const [key, val] of Object.entries(obj)) {
-        const fullKey = prefix ? `${prefix}[${key}]` : key;
-
-        if (val && typeof val === "object" && !Array.isArray(val)) {
-          flatten(val, fullKey);
-        } else if (Array.isArray(val)) {
-          parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(val.join(","))}`);
-        } else if (val != null) {
-          parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(val)}`);
-        }
-      }
-    };
-
-    flatten(this._params);
-
-    const base = `${this.streamEndpoints.baseUrl}${this.streamEndpoints.stream}`;
-    return parts.length ? `${base}?${parts.join("&")}` : base;
+    return buildSignalStreamUrl(`${this.streamEndpoints.baseUrl}${this.streamEndpoints.stream}`, this._params);
   }
 
   /** Connect to the SSE endpoint (browser EventSource). */
@@ -63,6 +74,10 @@ export default class BaseSignalStream {
         this._source.addEventListener(signalName, handler);
       }
     }
+
+    this._source.onopen = () => {
+      this._openListeners.forEach((listener) => listener());
+    };
 
     this._source.onerror = () => {
       if (this._closed) return;

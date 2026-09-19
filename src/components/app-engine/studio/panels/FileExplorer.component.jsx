@@ -2,13 +2,15 @@ import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import FolderIcon from '@mui/icons-material/Folder';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import NoteAddIcon from '@mui/icons-material/NoteAdd';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import {
+  Folder as FolderIcon,
+  FolderOpen as FolderOpenIcon,
+  InsertDriveFile as InsertDriveFileIcon,
+  NoteAdd as NoteAddIcon,
+  CreateNewFolder as CreateNewFolderIcon,
+  ExpandMore as ExpandMoreIcon,
+  ChevronRight as ChevronRightIcon,
+} from '@mui/icons-material';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const FileExplorer = ({

@@ -1,5 +1,5 @@
 import React from 'react';
-import InboxIcon from '@mui/icons-material/Inbox';
+import { Inbox as InboxIcon } from '@mui/icons-material';
 import { SUPPORT_THEME } from '../defaults/support.defaults';
 
 const SupportEmptyState = ({ message, icon: IconComponent, ...props }) => {

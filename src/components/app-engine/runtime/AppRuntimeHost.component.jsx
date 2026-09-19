@@ -1,55 +1,57 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import * as ReactJSXRuntime from "react/jsx-runtime";
-import * as ReactDOM from "react-dom";
 import * as ReactDOMClient from "react-dom/client";
-import * as ReactRouterDOM from "react-router-dom";
-import { styled } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import {
   RUNTIME_UI_DEFAULTS,
   mergeDefaults,
 } from "../defaults/appEngine.defaults";
-import SignalStream from "../../../streams/communication/signal/signal-stream";
-// Note: Optional SDK UI & Utils dependencies like @mui/material, recharts,
-// and axios are intentionally NOT imported here to avoid bloating the SDK bundle
-// and to prevent Rollup build failures. The host application should provide them
-// globally or pass them through a mechanism if they want apps to use them.
-
-// We will attempt to extract them from the global window object if the host
-// has exposed them, otherwise they will remain undefined in the shim.
-const resolveHostModule = (globalName) => {
-  if (typeof window !== "undefined" && window[globalName]) {
-    return window[globalName];
-  }
-  return undefined;
-};
+import {
+  RUNTIME_WINDOW_KEY,
+  STATIC_RUNTIME_MODULES,
+  ensureRuntimeModules,
+} from "./runtime-modules/runtime-modules.registry";
+import IdentityVerification from "./identity/IdentityVerification.component";
+import RuntimeHttpClient from "../../../features/app-engine/runtime/shared/runtime-http.client";
+import { createLoomClient } from "../../../features/app-engine/runtime/shared/loom-identity.client";
+import { createUuid } from "../../../features/app-engine/runtime/shared/runtime-ids";
+import {
+  buildIdentityHeaders,
+  buildSdkIdentity,
+  isIdentityExpired,
+  readIdentitySession,
+  readVerifiedIdentity,
+  verifyIdentityWithBackend,
+  writeVerifiedIdentity,
+} from "../../../features/app-engine/runtime/identity/identity-session";
+import AppDataClient from "../../../features/app-engine/runtime/data/data-client";
+import { buildAppDataNamespace } from "../../../features/app-engine/runtime/data/data-local.store";
+import AppFilesClient from "../../../features/app-engine/runtime/files/files-client";
+import { setRuntimeConfig } from "../../../features/app-engine/runtime/shared/runtime-config";
+import AppDirectoryClient from "../../../features/app-engine/runtime/directory/directory-client";
+import AppRealtimeHub from "../../../features/app-engine/runtime/realtime/app-realtime.hub";
+import {
+  flushOfflineSessionWrites,
+  isOfflineSessionId,
+  loadCachedAppBundle,
+  queueOfflineSessionWrite,
+  storeAppBundle,
+} from "../../../features/app-engine/runtime/offline/app-bundle.cache";
 
 const EMPTY_PAYLOAD = {};
+const APP_NOTIFICATION_EVENT = "stoneos::app-notification";
 
 // ── Runtime dependency shim infrastructure ─────────────────────────
-// The Vite build config marks react/react-dom/react-router-dom as
-// external and rewrites their import paths to $$LOOM_RUNTIME$$:<dep>
-// tokens. At load time we replace those tokens (and bare specifiers
-// for backward compat) with blob: URLs that re-export the host app's
-// already-loaded modules.
-
-const RUNTIME_WINDOW_KEY = "__LOOM_RUNTIME__";
-
-// Core modules that the SDK bundles directly (always available).
-const CORE_MODULES = {
-  react: React,
-  "react/jsx-runtime": ReactJSXRuntime,
-  "react-dom": ReactDOM,
-  "react-dom/client": ReactDOMClient,
-  "react-router-dom": ReactRouterDOM,
-};
+// The App Engine build marks shared dependencies as external and rewrites
+// their import paths to $$LOOM_RUNTIME$$:<dep> tokens. At load time the
+// referenced modules are resolved (static registry, on-demand loaders or
+// host registrations) and the tokens are replaced with blob: URLs that
+// re-export them from window.__LOOM_RUNTIME__.
 
 // Host-provided modules. The host application registers additional packages
 // in window.__LOOM_RUNTIME__ via its own setup file (e.g. app-engine-runtime.js).
-// The SDK does NOT need to know about these packages — the host decides what to expose.
 const HOST_MODULES = {
-  ...CORE_MODULES,
+  ...STATIC_RUNTIME_MODULES,
 };
 
 // Merge any modules the host has already registered in __LOOM_RUNTIME__
@@ -73,7 +75,6 @@ const TOKENIZED_IMPORT_PATTERN =
 // Only matches packages registered in HOST_MODULES or __LOOM_RUNTIME__.
 const buildBareSpecifierPattern = () => {
   const allKeys = new Set([
-    ...Object.keys(CORE_MODULES),
     ...Object.keys(HOST_MODULES),
     ...(typeof window !== "undefined" && window[RUNTIME_WINDOW_KEY]
       ? Object.keys(window[RUNTIME_WINDOW_KEY])
@@ -233,6 +234,26 @@ const prepareRuntimeCode = (rawCode) => {
 
 // ── End runtime dependency shim infrastructure ─────────────────────
 
+// What the embedding platform tells its apps about itself (e.g. { platform: 'mi-retail', name: 'Mi Retail',
+// capabilities: ['work-items'], locale: 'es', timeZone: 'America/Bogota' }), exposed read-only as
+// `sdk.context.host` (always the latest value; `sdk.context.onHostChange` reports locale/timeZone changes). JSON-safe values only: a copy
+// is frozen so an app cannot change what other apps of the same host read.
+const freezeHostContext = (hostContext) => {
+  if (!hostContext || typeof hostContext !== "object" || Array.isArray(hostContext)) {
+    return null;
+  }
+
+  let copy;
+  try {
+    copy = JSON.parse(JSON.stringify(hostContext));
+  } catch {
+    return null;
+  }
+
+  copy.capabilities = Object.freeze(Array.isArray(copy.capabilities) ? copy.capabilities.filter((entry) => typeof entry === "string") : []);
+  return Object.freeze(copy);
+};
+
 const AppRuntimeHost = ({
   appSlug,
   routePath,
@@ -243,6 +264,9 @@ const AppRuntimeHost = ({
   eventsBaseUrl,
   eventSubject,
   eventOrganizationId,
+  getIdentitySession,
+  loomCloudBaseUrl,
+  hostContext,
   ui,
   onClose,
   onSubmitOutput,
@@ -254,6 +278,7 @@ const AppRuntimeHost = ({
   className = "",
   renderLoading,
   renderError,
+  renderIdentityLoading,
 }) => {
   const config = mergeDefaults(RUNTIME_UI_DEFAULTS, ui);
   const theme = config.theme;
@@ -268,31 +293,157 @@ const AppRuntimeHost = ({
   const styleElementsRef = useRef([]);
   const inputPayloadRef = useRef(inputPayload || EMPTY_PAYLOAD);
   inputPayloadRef.current = inputPayload || EMPTY_PAYLOAD;
+  const getIdentitySessionRef = useRef(getIdentitySession);
+  getIdentitySessionRef.current = getIdentitySession;
+  const hostContextRef = useRef(hostContext);
+  hostContextRef.current = hostContext;
+  const frozenHostRef = useRef({ key: undefined, value: null });
+  const hostListenersRef = useRef(new Set());
   const stateProviderRef = useRef(null);
-  const signalStreamRef = useRef(null);
+  const runtimeDisposersRef = useRef([]);
+  // Bumped on unmount: an openSession still awaiting when the effect is torn down (StrictMode, fast
+  // navigation) must not mount a second app or open realtime connections nobody will release.
+  const mountGenerationRef = useRef(0);
+
+  // Latest frozen host context; a new frozen copy is only built when the serialized value changes.
+  const readHostContext = () => {
+    let key;
+    try {
+      key = JSON.stringify(hostContextRef.current ?? null);
+    } catch {
+      key = "";
+    }
+    if (frozenHostRef.current.key !== key) {
+      frozenHostRef.current = { key, value: freezeHostContext(hostContextRef.current) };
+    }
+    return frozenHostRef.current.value;
+  };
+
+  const hostLocale = hostContext?.locale;
+  const hostTimeZone = hostContext?.timeZone;
+  const hostSignatureRef = useRef({ locale: hostLocale, timeZone: hostTimeZone });
+
+  useEffect(() => {
+    const previous = hostSignatureRef.current;
+    if (previous.locale === hostLocale && previous.timeZone === hostTimeZone) return;
+    hostSignatureRef.current = { locale: hostLocale, timeZone: hostTimeZone };
+    const host = readHostContext();
+    for (const listener of Array.from(hostListenersRef.current)) {
+      try {
+        listener(host);
+      } catch {
+        // A failing app listener must not break the host or other listeners.
+      }
+    }
+  }, [hostLocale, hostTimeZone]);
+
+  const resolveLoomBaseUrl = () =>
+    loomCloudBaseUrl || appSessionService?.serviceEndpoints?.baseUrl || "";
+
+  const buildOpenRequest = () => {
+    const currentInput = inputPayloadRef.current;
+    return {
+      app_slug: appSlug,
+      route_path: routePath || "/",
+      launch_mode: launchMode,
+      input_payload: currentInput,
+      parent_session_id: currentInput?._parent_session_id || "",
+      view_state: currentInput?._restored_view_state || null,
+    };
+  };
+
+  // Identity phase: a cached verification (same token, not expired) skips the round trip. Only an
+  // explicit 401/403 blocks the app; network or directory failures continue because the backend
+  // still authorizes every request.
+  const verifyIdentity = async (identitySession, loomBaseUrl) => {
+    if (isIdentityExpired(identitySession)) {
+      setError("Your Veripass session has expired. Sign in again to continue.");
+      setStatus("identity-error");
+      return { verified: false };
+    }
+
+    const cached = await readVerifiedIdentity(identitySession);
+    if (cached) {
+      return { verified: true, profile: cached.profile };
+    }
+
+    setStatus("identity");
+    const httpClient = new RuntimeHttpClient({
+      baseUrl: loomBaseUrl,
+      getHeaders: () => buildIdentityHeaders(identitySession),
+    });
+
+    try {
+      const profile = await verifyIdentityWithBackend({ httpClient, identitySession });
+      await writeVerifiedIdentity(identitySession, profile);
+      return { verified: true, profile };
+    } catch (err) {
+      if (err.status !== 401 && err.status !== 403) {
+        return { verified: true, profile: null };
+      }
+      setError(err.message);
+      setStatus("identity-error");
+      return { verified: false };
+    }
+  };
+
+  const resolveOfflinePayload = async (identitySession) => {
+    if (identitySession && isIdentityExpired(identitySession)) {
+      return null;
+    }
+
+    const cached = await loadCachedAppBundle(appSlug);
+    if (!cached?.app_version?.build_artifact) {
+      return null;
+    }
+
+    return {
+      ...cached,
+      session: {
+        ...cached.session,
+        id: `offline-${createUuid()}`,
+        input_payload: inputPayloadRef.current,
+        route_path: routePath || "/",
+        launch_mode: launchMode,
+      },
+    };
+  };
 
   const openSession = useCallback(async () => {
     if (!appSessionService || !appSlug) return;
 
-    setStatus("loading");
+    const generation = mountGenerationRef.current;
+    const isStale = () => generation !== mountGenerationRef.current;
+
     setError(null);
+    const identitySession = readIdentitySession(getIdentitySessionRef.current?.());
+    const loomBaseUrl = resolveLoomBaseUrl();
+    let directoryProfile = null;
+
+    if (identitySession) {
+      const identityOutcome = await verifyIdentity(identitySession, loomBaseUrl);
+      if (isStale() || !identityOutcome.verified) return;
+      directoryProfile = identityOutcome.profile;
+    }
+
+    setStatus("loading");
 
     try {
-      const currentInput = inputPayloadRef.current;
-      const response = await appSessionService.open({
-        app_slug: appSlug,
-        route_path: routePath || "/",
-        launch_mode: launchMode,
-        input_payload: currentInput,
-        parent_session_id: currentInput?._parent_session_id || "",
-        view_state: currentInput?._restored_view_state || null,
+      const response = await appSessionService.open(buildOpenRequest(), {
+        headers: buildIdentityHeaders(identitySession),
       });
+      if (isStale()) return;
 
-      if (!response?.result) {
+      // BaseApi resolves network failures to undefined; a server answer always carries a body.
+      const openPayload =
+        response?.result ||
+        (response ? null : await resolveOfflinePayload(identitySession));
+
+      if (!openPayload) {
         throw new Error(response?.message || "Failed to open session");
       }
 
-      const { session: sessionData, app_version: version } = response.result;
+      const { session: sessionData, app_version: version } = openPayload;
       setSession(sessionData);
 
       if (!version?.build_artifact) {
@@ -301,14 +452,25 @@ const AppRuntimeHost = ({
         );
       }
 
-      await loadAndMount(version.build_artifact, sessionData, response.result);
+      if (!isOfflineSessionId(sessionData.id)) {
+        storeAppBundle(appSlug, openPayload);
+        flushOfflineSessionWrites(appSlug, sessionData.id, appSessionService).catch(() => {});
+      }
+
+      await loadAndMount(version.build_artifact, sessionData, openPayload, {
+        identitySession,
+        directoryProfile,
+        loomBaseUrl,
+        isStale,
+      });
     } catch (err) {
+      if (isStale()) return;
       setError(err.message);
       setStatus("error");
     }
-  }, [appSessionService, appSlug, routePath, launchMode]);
+  }, [appSessionService, appSlug, routePath, launchMode, loomCloudBaseUrl]);
 
-  const loadAndMount = async (buildArtifact, sessionData, fullPayload) => {
+  const loadAndMount = async (buildArtifact, sessionData, fullPayload, runtimeContext) => {
     try {
       const entryFile = Object.keys(buildArtifact).find(
         (key) => key.endsWith(".js") || key.endsWith(".mjs"),
@@ -318,6 +480,28 @@ const AppRuntimeHost = ({
         throw new Error("No entry file found in build artifacts");
       }
 
+      const rawCode = buildArtifact[entryFile].content;
+      await ensureRuntimeModules(rawCode);
+      const { processedCode, blobUrls: shimUrls } = prepareRuntimeCode(rawCode);
+
+      const blob = new Blob([processedCode], {
+        type: "application/javascript",
+      });
+      const blobUrl = URL.createObjectURL(blob);
+
+      let module;
+      try {
+        module = await import(/* @vite-ignore */ blobUrl);
+      } finally {
+        if (runtimeContext.isStale()) {
+          URL.revokeObjectURL(blobUrl);
+          shimUrls.forEach((url) => URL.revokeObjectURL(url));
+        }
+      }
+      if (runtimeContext.isStale()) return;
+
+      shimBlobUrlsRef.current = shimUrls;
+      blobUrlRef.current = blobUrl;
       const cssFiles = Object.keys(buildArtifact).filter((k) =>
         k.endsWith(".css"),
       );
@@ -331,17 +515,6 @@ const AppRuntimeHost = ({
         }
       }
 
-      const rawCode = buildArtifact[entryFile].content;
-      const { processedCode, blobUrls: shimUrls } = prepareRuntimeCode(rawCode);
-      shimBlobUrlsRef.current = shimUrls;
-
-      const blob = new Blob([processedCode], {
-        type: "application/javascript",
-      });
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlRef.current = blobUrl;
-
-      const module = await import(/* @vite-ignore */ blobUrl);
       const AppComponent = module.default;
 
       if (!AppComponent) {
@@ -355,15 +528,30 @@ const AppRuntimeHost = ({
         _loom_route_path: sessionData.route_path || routePath || "/",
         _loom_launch_mode: sessionData.launch_mode || launchMode,
       };
-      console.log("[AppRuntimeHost] loadAndMount sdk.input", {
-        appSlug,
-        launchMode,
-        _loom_restored_state: inputData._loom_restored_state || null,
+
+      const { identitySession, directoryProfile, loomBaseUrl } = runtimeContext;
+      const resolvedAppSlug = sessionData.app_slug || appSlug;
+      const sdkIdentity = buildSdkIdentity(identitySession, directoryProfile);
+
+      // Offline sessions have no server-side id: syncing waits until a real session is reopened.
+      const activeSessionRef = {
+        current: isOfflineSessionId(sessionData.id) ? null : sessionData.id,
+      };
+      const identityHeaders = () =>
+        buildIdentityHeaders(identitySession, activeSessionRef.current);
+      const canSync = () =>
+        globalThis.navigator?.onLine !== false &&
+        Boolean(identitySession) &&
+        Boolean(activeSessionRef.current);
+
+      setRuntimeConfig({ loomCloudBaseUrl: loomBaseUrl });
+
+      const loomHttp = new RuntimeHttpClient({
+        baseUrl: loomBaseUrl,
+        getHeaders: identityHeaders,
       });
 
       // Signals (realtime, one-way) — one SSE connection per app session, lazily created.
-      const signalChannels = new Set();
-      const signalBaseUrl = eventsBaseUrl || apiBaseUrl;
       const buildSubjectChannel = () => {
         if (!eventSubject) return null;
         if (typeof eventSubject === "string") return eventSubject;
@@ -371,26 +559,91 @@ const AppRuntimeHost = ({
           return `${eventSubject.type}:${eventSubject.id}`;
         return eventSubject.id || null;
       };
-      const applySignalParams = (stream) => {
-        stream.setParams({
-          channels: [...signalChannels],
+      const realtimeHub = new AppRealtimeHub({
+        baseUrl: eventsBaseUrl || loomBaseUrl || apiBaseUrl,
+        getParams: () => ({
           subject_type:
             typeof eventSubject === "object" ? eventSubject?.type : undefined,
           subject_id:
             typeof eventSubject === "object" ? eventSubject?.id : eventSubject,
           platform: "app",
-          organization_id: eventOrganizationId,
+          organization_id: identitySession?.organizationId || eventOrganizationId,
+          access_token: identitySession?.token,
+          app_session_id: activeSessionRef.current,
+        }),
+      });
+      let subjectChannelAdded = false;
+      const ensureSubjectChannel = () => {
+        if (subjectChannelAdded) return;
+        subjectChannelAdded = true;
+        realtimeHub.addChannel(buildSubjectChannel());
+        realtimeHub.ensureStream();
+      };
+      const namedSignalDisposers = new Map();
+
+      const dataClient = new AppDataClient({
+        http: loomHttp,
+        appSlug: resolvedAppSlug,
+        veripassIdentity: identitySession?.veripassIdentity,
+        organizationId: identitySession?.organizationId,
+        realtime: realtimeHub,
+        isOnline: canSync,
+      });
+      const filesClient = new AppFilesClient({
+        http: loomHttp,
+        namespace: buildAppDataNamespace({
+          veripassIdentity: identitySession?.veripassIdentity,
+          organizationId: identitySession?.organizationId,
+          appSlug: resolvedAppSlug,
+        }),
+        isOnline: canSync,
+      });
+      const directoryClient = new AppDirectoryClient({ http: loomHttp });
+
+      const saveSessionViewState = (state) => {
+        if (!appSessionService) return undefined;
+        if (!activeSessionRef.current) {
+          queueOfflineSessionWrite(resolvedAppSlug, {
+            view_state: state,
+            route_path: state?.currentRoute,
+          });
+          return undefined;
+        }
+        return appSessionService.saveViewState({
+          id: activeSessionRef.current,
+          view_state: state,
+          route_path: state?.currentRoute,
         });
       };
-      const ensureSignalStream = () => {
-        if (signalStreamRef.current) return signalStreamRef.current;
-        const subjectChannel = buildSubjectChannel();
-        if (subjectChannel) signalChannels.add(subjectChannel);
-        const stream = new SignalStream({ baseUrl: signalBaseUrl });
-        applySignalParams(stream);
-        stream.connect();
-        signalStreamRef.current = stream;
-        return stream;
+
+      const reopenRealSession = async () => {
+        if (activeSessionRef.current || !appSessionService) return;
+        const response = await appSessionService.open(buildOpenRequest(), {
+          headers: buildIdentityHeaders(identitySession),
+        });
+        const reopened = response?.result?.session;
+        if (!reopened?.id) return;
+        activeSessionRef.current = reopened.id;
+        sdk.session.id = reopened.id;
+        await flushOfflineSessionWrites(resolvedAppSlug, reopened.id, appSessionService);
+      };
+
+      const handleOnline = async () => {
+        await reopenRealSession().catch(() => {});
+        dataClient.sync();
+        filesClient.replayQueue();
+      };
+
+      const apiRequest = async (method, path, body, { withIdentity = false } = {}) => {
+        const res = await fetch(`${apiBaseUrl}${path}`, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            ...(withIdentity ? identityHeaders() : {}),
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        return res.json();
       };
 
       const sdk = {
@@ -403,44 +656,46 @@ const AppRuntimeHost = ({
           routePath: sessionData.route_path,
         },
         input: inputData,
+        identity: sdkIdentity,
         context: {
           appDefinition: fullPayload.app_definition || {},
           appVersion: fullPayload.app_version || {},
           task: inputData?.task || null,
           data: inputData,
+          user: sdkIdentity,
+          loomCloudBaseUrl: loomBaseUrl,
+          get host() {
+            return readHostContext();
+          },
+          // Fires with the latest `host` when the host's locale or timeZone changes; returns the unsubscribe.
+          onHostChange: (callback) => {
+            if (typeof callback !== "function") return () => {};
+            hostListenersRef.current.add(callback);
+            return () => hostListenersRef.current.delete(callback);
+          },
+        },
+        data: dataClient.toSdk(),
+        files: filesClient.toSdk(),
+        directory: directoryClient.toSdk(),
+        loom: createLoomClient(loomHttp),
+        notify: (notification = {}) => {
+          window.dispatchEvent(
+            new CustomEvent(APP_NOTIFICATION_EVENT, {
+              detail: { appSlug: resolvedAppSlug, ...notification },
+            }),
+          );
         },
         api: {
-          get: async (path, params = {}) => {
+          get: async (path, params = {}, options = {}) => {
             const qs = new URLSearchParams(params).toString();
-            const url = `${apiBaseUrl}${path}${qs ? "?" + qs : ""}`;
-            const res = await fetch(url, {
-              headers: { "Content-Type": "application/json" },
-            });
-            return res.json();
+            return apiRequest("GET", `${path}${qs ? "?" + qs : ""}`, undefined, options);
           },
-          post: async (path, body = {}) => {
-            const res = await fetch(`${apiBaseUrl}${path}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            });
-            return res.json();
-          },
-          patch: async (path, body = {}) => {
-            const res = await fetch(`${apiBaseUrl}${path}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            });
-            return res.json();
-          },
-          delete: async (path) => {
-            const res = await fetch(`${apiBaseUrl}${path}`, {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-            });
-            return res.json();
-          },
+          post: async (path, body = {}, options = {}) =>
+            apiRequest("POST", path, body, options),
+          patch: async (path, body = {}, options = {}) =>
+            apiRequest("PATCH", path, body, options),
+          delete: async (path, body, options = {}) =>
+            apiRequest("DELETE", path, body, options),
         },
         navigate: (path) => {
           if (onNavigate) onNavigate(path);
@@ -449,17 +704,20 @@ const AppRuntimeHost = ({
           if (onRouteChange) onRouteChange(path);
         },
         saveDraft: async (payload) => {
-          if (appSessionService) {
-            return appSessionService.saveDraft({
-              id: sessionData.id,
-              draft_payload: payload,
-            });
+          if (!appSessionService) return undefined;
+          if (!activeSessionRef.current) {
+            queueOfflineSessionWrite(resolvedAppSlug, { draft_payload: payload });
+            return undefined;
           }
+          return appSessionService.saveDraft({
+            id: activeSessionRef.current,
+            draft_payload: payload,
+          });
         },
         submitOutput: async (payload) => {
-          if (appSessionService) {
+          if (appSessionService && activeSessionRef.current) {
             await appSessionService.submitOutput({
-              id: sessionData.id,
+              id: activeSessionRef.current,
               output_payload: payload,
             });
           }
@@ -468,34 +726,21 @@ const AppRuntimeHost = ({
         close: () => {
           if (onClose) onClose();
         },
-        cancel: async (reason) => {
-          if (appSessionService) {
-            await appSessionService.cancel({ id: sessionData.id });
+        cancel: async () => {
+          if (appSessionService && activeSessionRef.current) {
+            await appSessionService.cancel({ id: activeSessionRef.current });
           }
           if (onClose) onClose();
         },
-        saveViewState: async (state) => {
-          if (!sessionData?.id || !appSessionService) return;
-          return appSessionService.saveViewState({
-            id: sessionData.id,
-            view_state: state,
-            route_path: state?.currentRoute,
-          });
-        },
+        saveViewState: async (state) => saveSessionViewState(state),
         requestEscalation: async (targetMode) => {
           const currentState = stateProviderRef.current?.() ?? null;
-          if (currentState && sessionData?.id && appSessionService) {
-            appSessionService
-              .saveViewState({
-                id: sessionData.id,
-                view_state: currentState,
-                route_path: currentState?.currentRoute,
-              })
-              .catch(() => {});
+          if (currentState) {
+            Promise.resolve(saveSessionViewState(currentState)).catch(() => {});
           }
           if (onRequestEscalation) {
             onRequestEscalation({
-              sessionId: sessionData.id,
+              sessionId: sdk.session.id,
               targetMode,
               viewState: currentState,
               routePath: currentState?.currentRoute || routePath,
@@ -504,18 +749,12 @@ const AppRuntimeHost = ({
         },
         requestDeEscalation: async () => {
           const currentState = stateProviderRef.current?.() ?? null;
-          if (currentState && sessionData?.id && appSessionService) {
-            appSessionService
-              .saveViewState({
-                id: sessionData.id,
-                view_state: currentState,
-                route_path: currentState?.currentRoute,
-              })
-              .catch(() => {});
+          if (currentState) {
+            Promise.resolve(saveSessionViewState(currentState)).catch(() => {});
           }
           if (onRequestDeEscalation) {
             onRequestDeEscalation({
-              sessionId: sessionData.id,
+              sessionId: sdk.session.id,
               viewState: currentState,
               routePath: currentState?.currentRoute || routePath,
             });
@@ -531,32 +770,48 @@ const AppRuntimeHost = ({
           return null;
         },
         signals: {
-          // Subscribe this app session to an additional channel (dynamic or fixed).
+          // Subscribe this app session to an additional channel and get back its unsubscribe function.
+          // `user:` and `app-data:` channels require the identity session (sent as access_token).
           subscribe: (channel) => {
-            if (channel) signalChannels.add(channel);
-            const stream = ensureSignalStream();
-            applySignalParams(stream);
-            stream.connect();
-            return stream;
+            ensureSubjectChannel();
+            const removeChannel = realtimeHub.addChannel(channel);
+            realtimeHub.ensureStream();
+            return removeChannel;
           },
           // Listen for a named signal (e.g. sdk.signals.on('session.revoke', cb)).
           on: (signalName, cb) => {
-            ensureSignalStream().on(signalName, cb);
+            ensureSubjectChannel();
+            const dispose = realtimeHub.on(signalName, (payload) => cb(payload));
+            const disposers = namedSignalDisposers.get(signalName) || [];
+            namedSignalDisposers.set(signalName, [...disposers, dispose]);
           },
-          off: (signalName) => signalStreamRef.current?.off(signalName),
-          // Send a one-way signal to a channel.
+          off: (signalName) => {
+            (namedSignalDisposers.get(signalName) || []).forEach((dispose) => dispose());
+            namedSignalDisposers.delete(signalName);
+          },
+          // Listen for a named signal and get back its own unsubscribe function.
+          listen: (signalName, cb) => {
+            ensureSubjectChannel();
+            return realtimeHub.on(signalName, (payload) => cb(payload));
+          },
+          // Send a one-way signal to a channel. Signals live on the Link Loom Cloud backend (the same one the
+          // stream reads), never on the host API.
           send: async (channel, name, payload = {}) =>
-            sdk.api.post("/communication/signal/send", {
-              channel,
-              name,
-              payload,
-            }),
-          disconnect: () => {
-            signalStreamRef.current?.disconnect();
-            signalStreamRef.current = null;
-          },
+            sdk.loom.post("/communication/signal/send", { channel, name, payload }),
+          disconnect: () => realtimeHub.disconnect(),
         },
       };
+
+      window.addEventListener("online", handleOnline);
+      dataClient.start();
+      filesClient.replayQueue();
+      runtimeDisposersRef.current = [
+        () => window.removeEventListener("online", handleOnline),
+        () => dataClient.dispose(),
+        () => filesClient.dispose(),
+        () => realtimeHub.dispose(),
+        () => hostListenersRef.current.clear(),
+      ];
 
       if (mountRef.current) {
         rootRef.current = ReactDOMClient.createRoot(mountRef.current);
@@ -564,6 +819,7 @@ const AppRuntimeHost = ({
         setStatus("running");
       }
     } catch (err) {
+      if (runtimeContext.isStale()) return;
       setError(err.message);
       setStatus("error");
     }
@@ -573,6 +829,7 @@ const AppRuntimeHost = ({
     openSession();
 
     return () => {
+      mountGenerationRef.current += 1;
       if (rootRef.current) {
         rootRef.current.unmount();
         rootRef.current = null;
@@ -589,10 +846,10 @@ const AppRuntimeHost = ({
         styleEl.remove();
       }
       styleElementsRef.current = [];
-      if (signalStreamRef.current) {
-        signalStreamRef.current.disconnect();
-        signalStreamRef.current = null;
+      for (const dispose of runtimeDisposersRef.current) {
+        dispose();
       }
+      runtimeDisposersRef.current = [];
     };
   }, [openSession]);
 
@@ -607,7 +864,7 @@ const AppRuntimeHost = ({
 
     const captureViewState = () => {
       const currentState = stateProviderRef.current?.() ?? null;
-      if (currentState && appSessionService) {
+      if (currentState && appSessionService && !isOfflineSessionId(currentSessionId)) {
         appSessionService
           .saveViewState({
             id: currentSessionId,
@@ -735,6 +992,26 @@ const AppRuntimeHost = ({
         flexDirection: "column",
       }}
     >
+      {status === "identity" &&
+        (renderIdentityLoading ? (
+          renderIdentityLoading()
+        ) : (
+          <IdentityVerification
+            status="verifying"
+            minHeight={theme.minHeight}
+            textColor={theme.textSecondary}
+          />
+        ))}
+      {status === "identity-error" && (
+        <IdentityVerification
+          status="error"
+          error={error}
+          onRetry={openSession}
+          minHeight={theme.minHeight}
+          textColor={theme.textSecondary}
+          errorColor={theme.errorColor}
+        />
+      )}
       {status === "loading" &&
         (renderLoading ? renderLoading() : defaultLoadingContent)}
       {status === "error" &&

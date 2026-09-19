@@ -7,16 +7,19 @@ import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import CodeIcon from '@mui/icons-material/Code';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import PushPinIcon from '@mui/icons-material/PushPin';
-import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import CategoryIcon from '@mui/icons-material/Category';
+import {
+  PlayArrow as PlayArrowIcon,
+  MoreVert as MoreVertIcon,
+  Code as CodeIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
+  PushPin as PushPinIcon,
+  PushPinOutlined as PushPinOutlinedIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  Category as CategoryIcon,
+} from '@mui/icons-material';
 import { MARKETPLACE_UI_DEFAULTS, mergeDefaults } from '../defaults/appEngine.defaults';
+import AppIcon from '../AppIcon.component';
 
 const CardArticle = styled('article')(({ $hoverBorderColor, $hoverShadow }) => ({
   cursor: 'pointer',
@@ -49,6 +52,7 @@ const AppMarketplaceCard = ({
   preference,
   className = '',
   renderContainer,
+  iconBaseUrl,
 }) => {
   const config = mergeDefaults(MARKETPLACE_UI_DEFAULTS, ui);
   const theme = config.theme;
@@ -122,7 +126,7 @@ const AppMarketplaceCard = ({
     <section className="card-body d-flex flex-column gap-2">
       <header className="d-flex justify-content-between align-items-start">
         <AppIconWrapper $color={app?.icon ? undefined : theme.iconDefaultBackground}>
-          {app?.icon || <CategoryIcon />}
+          <AppIcon appDefinition={app} size={22} baseUrl={iconBaseUrl} fallbackIcon={CategoryIcon} />
         </AppIconWrapper>
         <div className="d-flex gap-1 align-items-center">
           {preference?.is_favorite && (

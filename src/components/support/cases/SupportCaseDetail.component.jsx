@@ -5,11 +5,13 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import EditIcon from '@mui/icons-material/Edit';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CheckIcon from '@mui/icons-material/Check';
+import {
+  InfoOutlined as InfoOutlinedIcon,
+  Edit as EditIcon,
+  MenuBook as MenuBookIcon,
+  ContentCopy as ContentCopyIcon,
+  Check as CheckIcon,
+} from '@mui/icons-material';
 import SupportStatusBadge from '../shared/SupportStatusBadge.component';
 import SupportSeverityBadge from '../shared/SupportSeverityBadge.component';
 import SupportTimelineBlock from '../timeline/SupportTimelineBlock.component';

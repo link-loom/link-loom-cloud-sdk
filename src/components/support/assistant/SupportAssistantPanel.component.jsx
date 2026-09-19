@@ -4,15 +4,17 @@ import { styled as muiStyled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import PersonIcon from '@mui/icons-material/Person';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import AppsIcon from '@mui/icons-material/Apps';
-import LayersIcon from '@mui/icons-material/Layers';
-import LanguageIcon from '@mui/icons-material/Language';
-import BusinessIcon from '@mui/icons-material/Business';
+import {
+  SmartToy as SmartToyIcon,
+  Person as PersonIcon,
+  CheckCircle as CheckCircleIcon,
+  Visibility as VisibilityIcon,
+  TrendingUp as TrendingUpIcon,
+  Apps as AppsIcon,
+  Layers as LayersIcon,
+  Language as LanguageIcon,
+  Business as BusinessIcon,
+} from '@mui/icons-material';
 import {
   SUPPORT_ASSISTANT_DEFAULTS,
   mergeDefaults,

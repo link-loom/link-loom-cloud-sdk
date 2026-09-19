@@ -32,6 +32,7 @@ export default class BaseApi {
     }
 
     const mergedSettings = { ...this.settings, ...settings };
+    headers = { ...headers, ...(settings?.headers || {}) };
 
     this.client = axios.create({
       baseURL: this.api_url,

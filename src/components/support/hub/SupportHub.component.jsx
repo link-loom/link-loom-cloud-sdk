@@ -1,14 +1,16 @@
 import React from 'react';
 import styled from 'styled-components';
 import Button from '@mui/material/Button';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
+import {
+  ReportProblemOutlined as ReportProblemOutlinedIcon,
+  HelpOutline as HelpOutlineIcon,
+  VisibilityOutlined as VisibilityOutlinedIcon,
+  AutoAwesomeOutlined as AutoAwesomeOutlinedIcon,
+  ArrowForward as ArrowForwardIcon,
+  ChatOutlined as ChatOutlinedIcon,
+  CheckCircleOutlined as CheckCircleOutlinedIcon,
+  MenuBookOutlined as MenuBookOutlinedIcon,
+} from '@mui/icons-material';
 import SupportIncidentBanner from '../incidents/SupportIncidentBanner.component';
 import SupportCategoryGrid from '../categories/SupportCategoryGrid.component';
 import { SUPPORT_THEME } from '../defaults/support.theme';

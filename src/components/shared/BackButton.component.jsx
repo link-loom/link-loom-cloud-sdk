@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 
 const StyledButton = styled.button`
   font-size: 0.72rem;

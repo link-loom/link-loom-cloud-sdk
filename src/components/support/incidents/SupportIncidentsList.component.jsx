@@ -1,8 +1,10 @@
 import React from "react";
 import styled from "styled-components";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import {
+  CheckCircleOutlined as CheckCircleOutlinedIcon,
+  WarningAmberOutlined as WarningAmberOutlinedIcon,
+  ErrorOutline as ErrorOutlineIcon,
+} from "@mui/icons-material";
 import { SUPPORT_THEME } from "../defaults/support.theme";
 import {
   SUPPORT_INCIDENT_BANNER_DEFAULTS,

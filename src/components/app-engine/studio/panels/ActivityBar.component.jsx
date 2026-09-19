@@ -5,12 +5,14 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
-import ExplorerIcon from '@mui/icons-material/InsertDriveFileOutlined';
-import PropertiesIcon from '@mui/icons-material/Tune';
-import RunIcon from '@mui/icons-material/PestControl';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
+import {
+  InsertDriveFileOutlined as ExplorerIcon,
+  Tune as PropertiesIcon,
+  PestControl as RunIcon,
+  Settings as SettingsIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
+} from '@mui/icons-material';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
 
 const PANELS = [

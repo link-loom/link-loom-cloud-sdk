@@ -1,7 +1,6 @@
 import React from "react";
 import { Button, Chip, Divider, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { Check as CheckIcon, ArrowForward as ArrowForwardIcon } from "@mui/icons-material";
 
 import { formatCyclePrice } from "../../format/value-formatter";
 
