@@ -7,6 +7,8 @@ const HIDDEN_PAUSE_MS = 60 * 1000;
 const BACKGROUND_CHANNEL_PREFIX = "user:";
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30 * 1000;
+// A lane that lived at least this long counts as a working connection and earns a fresh backoff.
+const STABLE_CONNECTION_MS = 10 * 1000;
 const EVENT_SOURCE_CLOSED = 2;
 const GLOBAL_REGISTRY_KEY = Symbol.for("link-loom.cloud-sdk.realtime-connection-registry.v1");
 
@@ -51,6 +53,7 @@ export class RealtimeConnectionRegistry {
     coalesceMs = COALESCE_MS,
     hiddenPauseMs = HIDDEN_PAUSE_MS,
     random = Math.random,
+    now = () => Date.now(),
   } = {}) {
     this._EventSourceImpl = EventSourceImpl;
     this._timers = timers;
@@ -59,6 +62,7 @@ export class RealtimeConnectionRegistry {
     this._coalesceMs = coalesceMs;
     this._hiddenPauseMs = hiddenPauseMs;
     this._random = random;
+    this._now = now;
     this._clients = new Set();
     this._lanes = new Map();
     this._flushTimer = null;
@@ -159,6 +163,7 @@ export class RealtimeConnectionRegistry {
         source: null,
         boundSignals: new Set(),
         attempts: 0,
+        openedAt: null,
         retryTimer: null,
         notifyOnOpen: Boolean(lane) || notifyOnOpen,
       };
@@ -252,7 +257,9 @@ export class RealtimeConnectionRegistry {
       if (lane.source !== source) {
         return;
       }
-      lane.attempts = 0;
+      // A denied channel opens and is closed by the backend right away. Only a lane that stays open
+      // counts as a working connection; otherwise the backoff resets and the lane retries every second.
+      lane.openedAt = this._now();
       if (lane.notifyOnOpen) {
         lane.clients.forEach((client) => client.notifyReconnect());
       }
@@ -266,6 +273,10 @@ export class RealtimeConnectionRegistry {
       // The native EventSource retries on its own at a fixed pace; retries are owned here instead.
       source.close();
       lane.source = null;
+      if (lane.openedAt && this._now() - lane.openedAt >= STABLE_CONNECTION_MS) {
+        lane.attempts = 0;
+      }
+      lane.openedAt = null;
       this.#scheduleRetry(lane);
     };
 

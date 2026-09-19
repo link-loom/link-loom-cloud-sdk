@@ -722,6 +722,12 @@ export default class AppDataClient {
     if (!reference && !this._organizationId) {
       return () => {};
     }
+    // A record whose create has not replayed yet only exists on this device: the backend denies its
+    // channel (403) and the stream would reconnect for as long as the view stays open. Callers
+    // resubscribe once the local id maps to the stored record id.
+    if (isLocalId(reference)) {
+      return () => {};
+    }
     const channel = reference ? `app-data:${this._appSlug}:${collection}:${reference}` : `app-data:${this._appSlug}:${collection}`;
     const seenSignals = new Set();
 

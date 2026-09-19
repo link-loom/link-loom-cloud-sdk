@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 
 const OFFLINE_STATUS = { online: false, pending: 0, lastSyncAt: null, conflicts: 0, conflictIds: [] };
 
+// The data client emits a status snapshot after every sync pass, most of which change nothing. Keeping
+// the previous object on an unchanged snapshot spares every consumer a render it has no work for.
+const isSameStatus = (previous, next) =>
+  previous.online === next.online &&
+  previous.pending === next.pending &&
+  previous.lastSyncAt === next.lastSyncAt &&
+  previous.conflicts === next.conflicts &&
+  previous.conflictIds.length === next.conflictIds.length &&
+  previous.conflictIds.every((id, index) => id === next.conflictIds[index]);
+
 export default function useConnectivity(sdk) {
   const [status, setStatus] = useState(() => sdk?.data?.status() || OFFLINE_STATUS);
 
@@ -10,10 +20,11 @@ export default function useConnectivity(sdk) {
       return undefined;
     }
 
-    const refresh = () => setStatus(sdk.data.status());
+    const apply = (next) => setStatus((previous) => (isSameStatus(previous, next) ? previous : next));
+    const refresh = () => apply(sdk.data.status());
     refresh();
 
-    const unsubscribe = sdk.data.onStatusChange(setStatus);
+    const unsubscribe = sdk.data.onStatusChange(apply);
     window.addEventListener("online", refresh);
     window.addEventListener("offline", refresh);
 
