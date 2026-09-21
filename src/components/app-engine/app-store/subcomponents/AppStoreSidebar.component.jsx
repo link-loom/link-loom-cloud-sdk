@@ -1,261 +1,354 @@
-import React, { useMemo } from "react";
-import { Divider, Tooltip } from "@mui/material";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
+import { Box, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import {
-  AppsOutlined,
-  PushPin as PushPinIcon,
-  StarBorder as StarIcon,
-  Verified as VerifiedIcon,
-  AutoAwesome as AIIcon,
-  BuildOutlined as UtilityIcon,
-  PersonOutline as HitlIcon,
-  ShowChart as AnalyticsIcon,
-  Cable as IntegrationIcon,
-  Widgets as WorkspaceIcon,
-  Code as FallbackIcon,
-  CheckCircle as CheckCircleIcon,
-  DynamicForm as FormsIcon,
-  Storage as DataIcon,
+  ArrowBack as BackIcon,
+  AddBoxOutlined as BuildIcon,
+  KeyboardDoubleArrowLeft as CollapseIcon,
+  KeyboardDoubleArrowRight as ExpandIcon,
 } from "@mui/icons-material";
-import styled from "styled-components";
 
-import { useLaunchpadConfig } from "@/features/app-engine/launchpad/LaunchpadConfig.context";
-import { LAUNCHPAD_THEME as THEME, alpha } from "../../defaults/launchpad.theme";
+import { useAppStore } from "@/features/app-engine/app-store/AppStore.context";
+import { STORE_PILL_SIZES, STORE_PILL_TONES, enumName } from "@/features/app-engine/app-store/app-store.enums";
+import { categoryTitle } from "@/features/app-engine/app-store/app-store.format";
+import { STORE_VIEWS } from "@/features/app-engine/app-store/app-store.routes";
+import { alpha } from "../../defaults/launchpad.theme";
+import { STORE_COLORS as COLORS } from "../../defaults/stoneos-store.palette";
+import { STORE_XL_MEDIA, STORE_XL_QUERY, focusRingSx } from "../app-store.styles";
+import AppStorePillComponent from "./AppStorePill.component";
+import AppStoreSidebarGlyphComponent from "./AppStoreSidebarGlyph.component";
 
-const SidebarContainer = styled.div`
-  flex-shrink: 0;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  overflow-y: auto;
-  overflow-x: hidden;
-  width: 56px;
-  transition: width 200ms ease;
+const EXPANDED_WIDTH = 236;
+const RAIL_WIDTH = 60;
 
-  @media (min-width: 1200px) {
-    width: ${({ $collapsed }) => ($collapsed ? "56px" : "220px")};
+const collapsedKeyFor = (namespace) => `${namespace}::app-store::sidebar-collapsed`;
 
-    /* When collapsed at xl, override Bootstrap xl alignment to match small-screen style */
-    ${({ $collapsed }) =>
-      $collapsed &&
-      `
-      & .justify-content-xl-start {
-        justify-content: center !important;
-      }
-      & .px-xl-3 {
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
-      }
-    `}
+const readCollapsed = (key) => {
+  try {
+    return localStorage.getItem(key) === "true";
+  } catch {
+    return false;
   }
-`;
-
-const SidebarRow = styled.div`
-  cursor: pointer;
-  border-radius: 12px;
-  background-color: ${({ $isActive, $isFocused }) => ($isActive ? THEME.brand : $isFocused ? "#F3F4F6" : "transparent")};
-  color: ${({ $isActive }) => ($isActive ? "#FFFFFF" : "#374151")};
-  outline: ${({ $isFocused }) => ($isFocused ? `2px solid ${alpha(THEME.brand, 25.1)}` : "none")};
-  outline-offset: -2px;
-  transition: background-color 120ms ease;
-  margin: 0 8px 2px 8px;
-
-  &:hover {
-    background-color: ${({ $isActive }) => ($isActive ? THEME.brand : "#F3F4F6")};
-  }
-`;
-
-const CountPill = styled.span`
-  font-size: 11px;
-  font-weight: 600;
-  color: ${({ $isActive }) => ($isActive ? "rgba(255,255,255,0.8)" : "#9CA3AF")};
-  background-color: ${({ $isActive }) => ($isActive ? "rgba(255,255,255,0.15)" : "#F3F4F6")};
-  padding: 2px 8px;
-  border-radius: 999px;
-  line-height: 16px;
-`;
-
-const SectionLabel = styled.span`
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #9ca3af;
-  letter-spacing: 0.5px;
-`;
-
-const ExpandedContent = styled.span`
-  display: none;
-
-  @media (min-width: 1200px) {
-    display: ${({ $collapsed }) => ($collapsed ? "none" : "contents")};
-  }
-`;
-
-// Labels come from `storeLabels.categoryTitles`; a category without an entry here keeps the fallback icon.
-const CATEGORY_CONFIG = {
-  workspace: { icon: WorkspaceIcon, order: 0 },
-  utility: { icon: UtilityIcon, order: 1 },
-  hitl: { icon: HitlIcon, order: 2 },
-  ai: { icon: AIIcon, order: 3 },
-  analytics: { icon: AnalyticsIcon, order: 4 },
-  integration: { icon: IntegrationIcon, order: 5 },
-  forms: { icon: FormsIcon, order: 6 },
-  form: { icon: FormsIcon, order: 6 },
-  data: { icon: DataIcon, order: 7 },
 };
 
-function AppStoreSidebarComponent({ apps, selectedCategory, onSelectCategory, selectedPublisher, onSelectPublisher, collapsed, sidebarItems = [], sidebarFocusedIndex = -1 }) {
-  const { storeLabels: labels } = useLaunchpadConfig();
-  const { categories, publishers, pinnedCount, favoritesCount, officialCount, totalCount } = useMemo(() => {
-    const catMap = new Map();
-    const pubMap = new Map();
-    let pinned = 0;
-    let favorites = 0;
-    let official = 0;
+const writeCollapsed = (key, value) => {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    // A private window can refuse storage; the sidebar just opens expanded next time.
+  }
+};
 
-    for (const app of apps) {
-      const rawCat = app.category || app.manifest?.kind || "uncategorized";
-      const cat = typeof rawCat === "string" ? rawCat : rawCat?.name || rawCat?.title || "uncategorized";
-      catMap.set(cat, (catMap.get(cat) || 0) + 1);
+// Row label colours: ink by default, the accent for a link-like row, secondary for the way out.
+const TONES = {
+  default: { rest: COLORS.ink, hover: COLORS.ink },
+  accent: { rest: COLORS.accent, hover: COLORS.accent },
+  muted: { rest: COLORS.textSecondary, hover: COLORS.ink },
+};
 
-      if (app.is_pinned) pinned++;
-      if (app.is_favorite) favorites++;
-      if (app.is_official) official++;
+// The ground of a row: white when it is the screen on show, the sidebar's hover tone under the pointer.
+const rowGroundSx = (active) => ({
+  borderRadius: "8px",
+  backgroundColor: active ? COLORS.surface : "transparent",
+  transition: "background-color 120ms ease, color 120ms ease",
+  "&:hover": { backgroundColor: active ? COLORS.surface : COLORS.hover },
+});
 
-      const pubName = app.publisher?.name || app.publisher?.profile?.name;
-      const pubVerified = app.publisher?.verified ?? app.publisher?.profile?.verified;
-      if (pubName) {
-        if (!pubMap.has(pubName)) {
-          pubMap.set(pubName, { name: pubName, verified: pubVerified, count: 0 });
-        }
-        pubMap.get(pubName).count++;
-      }
-    }
+const itemSx = ({ active, rail, dense, tone, grounded = true }) => ({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: rail ? "center" : "flex-start",
+  gap: 1.25,
+  flexShrink: 0,
+  width: "100%",
+  minWidth: 0,
+  minHeight: rail ? 36 : undefined,
+  px: rail ? 0 : 1.25,
+  py: dense ? "7px" : "8px",
+  border: 0,
+  font: "inherit",
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: active ? 600 : 500,
+  textAlign: "left",
+  textDecoration: "none",
+  cursor: "pointer",
+  color: TONES[tone].rest,
+  // Inside a strip the link takes what the trailing control leaves, and the strip draws the ground.
+  ...(grounded ? rowGroundSx(active) : { flex: "1 1 auto", width: "auto", borderRadius: "8px", backgroundColor: "transparent" }),
+  "&:hover": { ...(grounded ? rowGroundSx(active)["&:hover"] : {}), color: TONES[tone].hover, textDecoration: "none" },
+  ...focusRingSx,
+});
 
-    const sortedCategories = Array.from(catMap.entries())
-      .map(([key, count]) => {
-        const config = CATEGORY_CONFIG[key] || { icon: FallbackIcon, order: 99 };
-        const label = labels.categoryTitles[key] || key.charAt(0).toUpperCase() + key.slice(1);
-        return { key, count, icon: config.icon, label, order: config.order };
-      })
-      .sort((a, b) => a.order - b.order);
+// The fold control's own ground: darker than whatever row it sits on, so its hover reads on its own.
+const foldButtonSx = (rail) => ({
+  flex: "none",
+  display: "grid",
+  placeItems: "center",
+  width: rail ? "100%" : 26,
+  height: rail ? 24 : 26,
+  p: 0,
+  mr: rail ? 0 : "5px",
+  border: 0,
+  borderRadius: "6px",
+  background: "transparent",
+  color: COLORS.textTertiary,
+  cursor: "pointer",
+  transition: "background-color 120ms ease, color 120ms ease",
+  "&:hover": { backgroundColor: alpha(COLORS.ink, 9), color: COLORS.ink },
+  "& .MuiSvgIcon-root": { fontSize: 16 },
+  ...focusRingSx,
+});
 
-    const pubList = Array.from(pubMap.values()).sort((a, b) => b.count - a.count);
+const tooltipSlotProps = {
+  tooltip: { sx: { backgroundColor: COLORS.ink, color: COLORS.textOnAccent, fontSize: 12, fontWeight: 500, borderRadius: "8px", px: 1.25, py: 0.75 } },
+};
 
-    return {
-      categories: sortedCategories,
-      publishers: pubList,
-      pinnedCount: pinned,
-      favoritesCount: favorites,
-      officialCount: official,
-      totalCount: apps.length,
-    };
-  }, [apps, labels]);
-
-  const renderRow = (key, label, Icon, count, isActive, onClickHandler) => {
-    const sidebarIdx = sidebarItems.findIndex((item) => item.key === key);
-    const isFocused = sidebarIdx >= 0 && sidebarIdx === sidebarFocusedIndex;
-    return (
-    <Tooltip key={key || "all"} title={label} placement="right" enterDelay={300} slotProps={{ popper: { className: "d-xl-none" } }}>
-      <SidebarRow
-        $isActive={isActive}
-        $isFocused={isFocused}
-        className="d-flex align-items-center justify-content-center justify-content-xl-start gap-2 px-2 px-xl-3 py-2"
-        role="button"
-        tabIndex={0}
-        onClick={() => onClickHandler(isActive ? null : key)}
-        onKeyDown={(e) => e.key === "Enter" && onClickHandler(isActive ? null : key)}
+/**
+ * One row of the sidebar. In the rail it is only its mark, so the label moves into a tooltip; when the
+ * column is expanded the label is on screen and a tooltip would only repeat it. A row with `trailing`
+ * (Discover and its fold control) is a strip holding the link and that control side by side: the
+ * strip owns the row's ground, each part keeps its own click, hover and focus.
+ */
+function SidebarRow({ rail, label, mark, count, active = false, dense = false, tone = "default", to, onClick, trailing = null }) {
+  const linkProps = to ? { component: RouterLink, to } : { component: "button", type: "button", onClick };
+  const link = (
+    <Tooltip title={rail ? label : ""} placement="right" disableInteractive slotProps={tooltipSlotProps}>
+      <Box
+        {...linkProps}
+        aria-label={rail ? label : undefined}
+        aria-current={active ? "page" : undefined}
+        sx={itemSx({ active, rail, dense, tone, grounded: !trailing })}
       >
-        <Icon sx={{ fontSize: 18, color: isActive ? "#FFFFFF" : "#6B7280", flexShrink: 0 }} />
-        <ExpandedContent $collapsed={collapsed}>
-          <span className="flex-grow-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-            {label}
-          </span>
-          <CountPill $isActive={isActive}>{count}</CountPill>
-        </ExpandedContent>
-      </SidebarRow>
+        {mark}
+        {!rail && (
+          <>
+            <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {label}
+            </Box>
+            {count !== undefined && count !== null && (
+              <Box component="span" sx={{ fontSize: 11, color: COLORS.textTertiary }}>
+                {count}
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
     </Tooltip>
   );
-  };
 
-  const handleSelectCategory = (cat) => {
-    onSelectCategory(cat);
-    if (cat !== null) onSelectPublisher(null);
-  };
-
-  const handleSelectPublisher = (pub) => {
-    onSelectPublisher(pub);
-    if (pub !== null) onSelectCategory(null);
-  };
+  if (!trailing) {
+    return link;
+  }
 
   return (
-    <SidebarContainer $collapsed={collapsed} className="d-flex flex-column h-100">
-      <div className="py-2">
-        {renderRow(null, labels.allApps, AppsOutlined, totalCount, selectedCategory === null && !selectedPublisher, handleSelectCategory)}
+    <Box className="d-flex align-items-center" sx={{ flexShrink: 0, ...rowGroundSx(active) }}>
+      {link}
+      {trailing}
+    </Box>
+  );
+}
 
-        {pinnedCount > 0 &&
-          renderRow("pinned", labels.pinned, PushPinIcon, pinnedCount, selectedCategory === "pinned", handleSelectCategory)}
+// A hairline between groups of rows (a plain rule: a host's global `hr` styles never reach it).
+function Rule({ inset }) {
+  return <Box role="separator" sx={{ flex: "none", height: "1px", my: 1.5, mx: inset, backgroundColor: COLORS.hairline }} />;
+}
 
-        {favoritesCount > 0 &&
-          renderRow("favorites", labels.favorites, StarIcon, favoritesCount, selectedCategory === "favorites", handleSelectCategory)}
+function SectionLabel({ rail, children }) {
+  if (rail) {
+    return <Rule inset={1} />;
+  }
 
-        {officialCount > 0 &&
-          renderRow("official", labels.official, VerifiedIcon, officialCount, selectedCategory === "official", handleSelectCategory)}
-      </div>
+  return (
+    <>
+      <Rule inset={0.5} />
+      <Typography
+        component="p"
+        sx={{ px: 1.25, mb: "6px", fontSize: 11, fontWeight: 600, lineHeight: 1.4, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.textTertiary }}
+      >
+        {children}
+      </Typography>
+    </>
+  );
+}
 
-      {categories.length > 0 && (
-        <>
-          <Divider sx={{ mx: 1, my: 1 }} />
-          <ExpandedContent $collapsed={collapsed}>
-            <div className="px-3 py-1">
-              <SectionLabel>{labels.categories}</SectionLabel>
-            </div>
-          </ExpandedContent>
-          <div className="d-flex flex-column pb-2">
-            {categories.map(({ key, label, icon, count }) =>
-              renderRow(key, label, icon, count, selectedCategory === key, handleSelectCategory)
-            )}
-          </div>
-        </>
+/**
+ * The store's navigation: Discover, every suite and the organization's own apps; the suites the
+ * organization already uses; the categories with their counts; the way to build an app; and the way
+ * back to My apps.
+ *
+ * From Bootstrap's xl up it is a column the person can fold into a rail of icons (remembered in
+ * `<namespace>::app-store::sidebar-collapsed`): the fold control («) sits at the right end of the
+ * Discover row, and in the rail the unfold control (») sits on top, right above the Discover glyph.
+ * Below xl it is always the rail, without either control.
+ */
+function AppStoreSidebarComponent() {
+  // -----------------------------------------------------
+  // 1. Hooks
+  // -----------------------------------------------------
+  const { labels, storePaths, storageNamespace, current, catalogs, facets, suites, organizationName, createApp, backToMyApps } = useAppStore();
+  // Read on the first render, so a wide window does not paint the rail and then unfold it.
+  const isXl = useMediaQuery(STORE_XL_QUERY, { noSsr: true });
+
+  // -----------------------------------------------------
+  // 3. UI States
+  // -----------------------------------------------------
+  const collapsedKey = collapsedKeyFor(storageNamespace);
+  const [collapsed, setCollapsed] = useState(() => readCollapsed(collapsedKey));
+  // The fold control moves between the Discover row and the top of the rail, so it is a new element
+  // after each fold; focus follows it there instead of falling to the page.
+  const foldRef = useRef(null);
+  const keepFoldFocus = useRef(false);
+
+  // -----------------------------------------------------
+  // 4. Configs / Constants
+  // -----------------------------------------------------
+  const rail = collapsed || !isXl;
+  const countsByName = new Map((facets?.categories || []).map((entry) => [enumName(entry.category) || entry.key, entry.count]));
+  const yourSuites = suites.filter((suite) => Number(suite.apps_in_use) > 0);
+  const initial = (organizationName || "").trim().charAt(0).toUpperCase();
+  const foldLabel = collapsed ? labels.nav.expand : labels.nav.collapse;
+
+  // -----------------------------------------------------
+  // 5. Component Functions
+  // -----------------------------------------------------
+  const toggle = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      keepFoldFocus.current = document.activeElement === event.currentTarget;
+      setCollapsed((value) => {
+        writeCollapsed(collapsedKey, !value);
+        return !value;
+      });
+    },
+    [collapsedKey],
+  );
+
+  // -----------------------------------------------------
+  // 6. Lifecycle
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!keepFoldFocus.current) return;
+    keepFoldFocus.current = false;
+    foldRef.current?.focus();
+  }, [collapsed]);
+
+  // -----------------------------------------------------
+  // 7. Render
+  // -----------------------------------------------------
+  const foldControl = isXl ? (
+    <Tooltip title={foldLabel} placement="right" disableInteractive slotProps={tooltipSlotProps}>
+      <Box ref={foldRef} component="button" type="button" onClick={toggle} aria-label={foldLabel} aria-expanded={!collapsed} sx={foldButtonSx(rail)}>
+        {collapsed ? <ExpandIcon /> : <CollapseIcon />}
+      </Box>
+    </Tooltip>
+  ) : null;
+
+  return (
+    <Box
+      component="nav"
+      aria-label={labels.nav.label}
+      className="d-flex flex-column h-100"
+      sx={{
+        flex: "none",
+        width: RAIL_WIDTH,
+        [STORE_XL_MEDIA]: { width: collapsed ? RAIL_WIDTH : EXPANDED_WIDTH },
+        transition: "width 200ms ease",
+        borderRight: `1px solid ${COLORS.hairlineSoft}`,
+        backgroundColor: COLORS.sidebar,
+        overflowX: "hidden",
+        overflowY: "auto",
+        rowGap: "1px",
+        px: rail ? 1 : 1.5,
+        py: 2,
+        boxSizing: "border-box",
+      }}
+    >
+      {rail && foldControl && <Box sx={{ mb: 0.5 }}>{foldControl}</Box>}
+
+      <SidebarRow
+        rail={rail}
+        label={labels.nav.discover}
+        mark={<AppStoreSidebarGlyphComponent variant="discover" />}
+        active={current.view === STORE_VIEWS.discover || current.view === STORE_VIEWS.search}
+        to={storePaths.discover()}
+        trailing={rail ? null : foldControl}
+      />
+      <SidebarRow
+        rail={rail}
+        label={labels.nav.allSuites}
+        mark={<AppStoreSidebarGlyphComponent variant="suites" />}
+        count={facets?.suites_total}
+        active={current.view === STORE_VIEWS.suites}
+        to={storePaths.suites()}
+      />
+      <SidebarRow
+        rail={rail}
+        label={labels.nav.organizationApps(organizationName)}
+        mark={<AppStoreSidebarGlyphComponent variant="organization" initial={initial} />}
+        count={facets?.organization_apps_total}
+        active={current.view === STORE_VIEWS.organization}
+        to={storePaths.organization()}
+      />
+
+      <SectionLabel rail={rail}>{labels.nav.yourSuites}</SectionLabel>
+      {yourSuites.map((suite) => (
+        <SidebarRow
+          key={suite.slug}
+          rail={rail}
+          dense
+          label={suite.name}
+          mark={<AppStoreSidebarGlyphComponent variant="suite" color={suite.color} />}
+          active={current.view === STORE_VIEWS.suite && current.suite === suite.slug}
+          to={storePaths.suite(suite.slug)}
+        />
+      ))}
+      <SidebarRow
+        rail={rail}
+        dense
+        tone="accent"
+        label={labels.nav.seeAllSuites}
+        mark={<AppStoreSidebarGlyphComponent variant="see-all" />}
+        to={storePaths.suites()}
+      />
+
+      <SectionLabel rail={rail}>{labels.nav.categories}</SectionLabel>
+      {catalogs.categories.map((category) => {
+        const active = current.view === STORE_VIEWS.category && current.category === category.name;
+        return (
+          <SidebarRow
+            key={category.key}
+            rail={rail}
+            dense
+            label={categoryTitle(labels, category)}
+            mark={<AppStoreSidebarGlyphComponent variant="category" active={active} />}
+            count={countsByName.get(category.name) ?? 0}
+            active={active}
+            to={storePaths.category(category.name)}
+          />
+        );
+      })}
+
+      <Box sx={{ flex: 1, minHeight: 16 }} />
+
+      {createApp && !rail && (
+        <Box sx={{ p: "14px", mt: 1.5, mb: 1, borderRadius: "12px", border: `1px solid ${COLORS.hairline}`, backgroundColor: COLORS.surface }}>
+          <Typography component="p" sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: COLORS.ink, mb: 0.5 }}>
+            {labels.build.title}
+          </Typography>
+          <Typography component="p" sx={{ fontSize: 12, lineHeight: 1.4, color: COLORS.textSecondary, mb: 1.25 }}>
+            {labels.build.hint}
+          </Typography>
+          <AppStorePillComponent tone={STORE_PILL_TONES.dark} size={STORE_PILL_SIZES.small} fullWidth onClick={createApp}>
+            {labels.build.action}
+          </AppStorePillComponent>
+        </Box>
       )}
+      {createApp && rail && <SidebarRow rail={rail} label={labels.build.title} mark={<BuildIcon sx={{ fontSize: 19, color: COLORS.ink }} />} onClick={createApp} />}
 
-      {publishers.length > 0 && (
-        <>
-          <Divider sx={{ mx: 1, my: 1 }} />
-          <ExpandedContent $collapsed={collapsed}>
-            <div className="px-3 py-1">
-              <SectionLabel>{labels.publishers}</SectionLabel>
-            </div>
-          </ExpandedContent>
-          <div className="d-flex flex-column pb-2">
-            {publishers.map(({ name, verified, count }) => {
-              const isActive = selectedPublisher === name;
-              const PublisherIcon = verified ? CheckCircleIcon : FallbackIcon;
-              return (
-                <Tooltip key={name} title={name} placement="right" enterDelay={300} slotProps={{ popper: { className: "d-xl-none" } }}>
-                  <SidebarRow
-                    $isActive={isActive}
-                    className="d-flex align-items-center justify-content-center justify-content-xl-start gap-2 px-2 px-xl-3 py-2"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleSelectPublisher(isActive ? null : name)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSelectPublisher(isActive ? null : name)}
-                  >
-                    <PublisherIcon
-                      sx={{ fontSize: 14, color: isActive ? "#FFFFFF" : verified ? THEME.success : "#9CA3AF", flexShrink: 0 }}
-                    />
-                    <ExpandedContent $collapsed={collapsed}>
-                      <span className="flex-grow-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-                        {name}
-                      </span>
-                      <CountPill $isActive={isActive}>{count}</CountPill>
-                    </ExpandedContent>
-                  </SidebarRow>
-                </Tooltip>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </SidebarContainer>
+      <SidebarRow rail={rail} tone="muted" label={labels.nav.backToMyApps} mark={<BackIcon sx={{ fontSize: 16 }} />} onClick={backToMyApps} />
+    </Box>
   );
 }
 

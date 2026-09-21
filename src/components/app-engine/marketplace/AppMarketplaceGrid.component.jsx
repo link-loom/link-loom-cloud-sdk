@@ -13,6 +13,7 @@ import {
   mergeDefaults,
 } from "../defaults/appEngine.defaults";
 import { useAppEngineSDK } from "../../../features/app-engine/context/AppEngineSDK.context";
+import { enumName } from "@/features/app-engine/app-store/app-store.enums";
 
 const StyledTabs = styled(Tabs)({
   minHeight: "36px",
@@ -126,7 +127,7 @@ const AppMarketplaceGrid = ({
     return (
       app.name?.toLowerCase().includes(query) ||
       app.description?.toLowerCase().includes(query) ||
-      app.category?.toLowerCase().includes(query) ||
+      enumName(app.category)?.toLowerCase().includes(query) ||
       app.slug?.toLowerCase().includes(query)
     );
   });

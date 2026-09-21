@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Button, IconButton, InputBase, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Button, IconButton, TextField, Tooltip, Typography } from "@mui/material";
 import {
-  Search as SearchIcon,
   Add as AddIcon,
   EditOutlined as EditIcon,
   Close as CloseIcon,
@@ -27,6 +26,7 @@ import { getCategoryIcon, getCategoryTint } from "../categoryIcon.util";
 import { LAUNCHPAD_THEME as THEME } from "../defaults/launchpad.theme";
 import AppContextMenuComponent from "./AppContextMenu.component";
 import StoneOSTabsComponent from "./StoneOSTabs.component";
+import LaunchpadSearchFieldComponent from "./LaunchpadSearchField.component";
 
 const TILE = 58;
 const GRID = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(128px, 1fr))", gap: "8px 12px" };
@@ -807,68 +807,14 @@ function AppLaunchpadContent({ renderBridge }) {
           >
             {labels.prompt}
           </Typography>
-          <Box sx={{ width: 580, maxWidth: "100%", position: "relative" }}>
-            {/* The field's root is positioned too and comes after this in the DOM, so
-                without a z-index its white background paints straight over the
-                glyph — present in the tree, invisible on screen. */}
-            <SearchIcon
-              sx={{
-                position: "absolute",
-                zIndex: 1,
-                left: 16,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 18,
-                color: THEME.textTertiary,
-                pointerEvents: "none",
-              }}
-            />
-            <InputBase
-              inputRef={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={onSearchKeyDown}
-              placeholder={labels.searchPlaceholder}
-              inputProps={{ "aria-label": labels.searchPlaceholder }}
-              sx={{
-                width: "100%",
-                height: 50,
-                pl: "44px",
-                pr: "84px",
-                borderRadius: "12px",
-                border: `1px solid ${THEME.border}`,
-                backgroundColor: "background.paper",
-                fontSize: 16,
-                boxShadow: THEME.shadowSm,
-                transition: "border-color 120ms ease, box-shadow 120ms ease",
-                "&.Mui-focused": {
-                  borderColor: "primary.main",
-                  boxShadow: `0 0 0 3px color-mix(in srgb, ${THEME.brand} 15%, transparent)`,
-                },
-              }}
-            />
-            {/* One pill, not three keys: it is a single shortcut. */}
-            <Box
-              component="span"
-              sx={{
-                position: "absolute",
-                right: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                pointerEvents: "none",
-                fontSize: 11,
-                letterSpacing: "0.04em",
-                px: "8px",
-                py: "4px",
-                borderRadius: 999,
-                border: `1px solid ${THEME.border}`,
-                color: THEME.textTertiary,
-                backgroundColor: THEME.bgPage,
-              }}
-            >
-              {labels.searchShortcut}
-            </Box>
-          </Box>
+          <LaunchpadSearchFieldComponent
+            inputRef={searchRef}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onSearchKeyDown}
+            placeholder={labels.searchPlaceholder}
+            shortcut={labels.searchShortcut}
+          />
         </Box>
 
         {hasError && (

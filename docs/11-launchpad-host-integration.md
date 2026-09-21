@@ -25,7 +25,7 @@ StoneOS host (Sommatic client, Link Loom Cloud client/admin) has the same skelet
 | Sidebar/layout shell (column width, rail column, offsets) | Host | Section 5. This is the part that breaks if skipped. |
 | Command Center bridges (`*.sommatic.jsx`) | Host | Passed through `renderBridge`. The SDK never imports `@sommatic/react-sdk`. |
 | "New App" create form | Host | Passed through `renderCreateApp`. |
-| Global shortcut to My apps (⌘⇧A) | Host | The page only shows the hint. |
+| Global shortcut to My apps (e.g. ⌘⇧A) | Host (optional) | A host-wide jump to My apps. The search field's own shortcut is `/` and is handled by the SDK on both My apps and the App Store. |
 | Grab cursor during a drag | Host (optional) | Section 11. |
 | Branding (logo, brand colour, copy language) | Host | Never copy Mi Retail's. |
 
@@ -44,13 +44,19 @@ StoneOS host (Sommatic client, Link Loom Cloud client/admin) has the same skelet
    `@emotion/react`, `@emotion/styled`, `styled-components` 6, `@link-loom/react-sdk` (for `openSnackbar`
    and `PopUp`), `@veripass/react-sdk`.
 3. **Auth.** The surfaces call `useAuth()` from `@veripass/react-sdk`, so they must render under the host's
-   Veripass `AuthProvider`. They read `user.identity` (preference owner) and `user.payload.organization_id`
-   (catalog scope). No token handling is needed in the host beyond what Veripass already does.
+   Veripass `AuthProvider`. They read `user.identity` (preference owner). The catalog, the store and the
+   entitlements are read **as the person**: `AppEngineSDKProvider` sends the Veripass token and the active
+   organization (`Authorization`, `x-veripass-organization-identity`, built by
+   `createSessionIdentityHeaders(getToken())`) and the backend takes the organization from that principal,
+   never from a parameter. No token handling is needed in the host beyond what Veripass already does.
 4. **Link Loom Cloud backend URL.** Set `VITE_LOOM_CLOUD_BACKEND_URL` in the host `.env*` files, or pass
    `baseUrl` to each of the three components. Endpoints used:
-   `GET /app-engine/definition/marketplace/`, `GET|POST|PATCH` app preferences (`queryselector: "user"`),
-   `DELETE /app-engine/definition` (App Store, own apps only) and `GET /app-engine/definition/icon/:slug`
-   (published SVG icons — served by the same backend the catalog comes from).
+   `GET /app-engine/definition/marketplace/` (paged, the apps the organization can use),
+   `GET|POST|PATCH` app preferences (`queryselector: "user"`), `GET /app-engine/store/:queryselector`
+   (`apps`, `facets`, `home`, `app`, `catalogs`), `GET /app-engine/suite/:queryselector`,
+   `POST /app-engine/entitlement/grant` and `/grant-suite`, `DELETE /app-engine/definition` (App Store, own
+   apps only) and `GET /app-engine/definition/icon/:slug` (published SVG icons — served by the same backend
+   the catalog comes from). The store's model and contract are in `docs/12-app-store-suites-entitlements.md`.
 5. **Bootstrap 5 utility CSS.** The App Store uses Bootstrap utilities (`d-flex`, `px-4`, `gap-*`, `row g-3`,
    `col-*`, `text-muted`, `h5`). Adminto's `app.css` provides them. A host without Bootstrap must add it.
 6. **A MUI theme is optional.** Typography variants (`subtitle1`, `overline`, `h5`, `body1/2`) and
@@ -373,19 +379,35 @@ function AppEngineMarketplacePage() {
 export default AppEngineMarketplacePage;
 ```
 
-Routes (react-router 7, under the `/client` layout route):
+Routes (react-router 7, under the `/client` layout route). **The store is mounted on a splat route**
+(`store/*`): every screen of the store is a route under it, resolved by the store itself.
 
 ```jsx
 <Route path="stoneos">
   <Route index element={<Navigate to="/client/stoneos/apps" replace />} />
   <Route path="apps" element={<AppLaunchpadPage />} />
-  <Route path="store" element={<AppEngineMarketplacePage />} />
+  <Route path="store/*" element={<AppEngineMarketplacePage />} />
 </Route>
 ```
 
+The store's own routes, relative to `paths.store` (build them with `buildStorePaths(paths.store)`; the view
+names are `STORE_VIEWS`):
+
+| Path | Screen |
+|---|---|
+| `/` | Discover: the Featured banner (`store/home` → `spotlight`), "Suggested for you" (every featured app), highlighted suites, every app (infinite scroll) |
+| `/?q=term` | Search results |
+| `suites` | All suites, grouped by kind, the ones in use first |
+| `suites/:slug` | A suite: price, coverage, apps already in My apps, apps to add (`?category=` filters) |
+| `apps/:slug` | An app's page (a route, never a drawer) |
+| `categories/:category` | A category across suites (`?suite=` narrows to one suite) |
+| `organization` | The apps the organization built |
+
 Keep the host's old catalog routes as `<Navigate>` redirects (forward `location.search` for the store so a
-`?q=` survives). The store reads `?q=` on mount: the launchpad's "Search the App Store for …" and the
-right-click "View in the App Store" land with the search filled.
+`?q=` survives). The launchpad's "Search the App Store for …" and the right-click "View in the App Store"
+land on `?q=` with the search filled. An app's runtime answers `403 app_not_entitled` for a public app the
+organization does not have: `AppRuntimeHostComponent` then shows "Get this app", linking to `apps/:slug`
+under `paths.store` — so `paths.store` must be the real store route even on hosts that only embed apps.
 
 Component props:
 
@@ -395,8 +417,13 @@ Component props:
 | `AppLaunchpadComponent` | `baseUrl?`, `renderBridge?(state)` |
 | `AppStoreComponent` | `baseUrl?`, `renderBridge?(state)`, `renderCreateApp?({ onUpdatedEntity, onClose })`, `contentHeight?` (default `calc(100vh - 172px)` = 70px navbar + 52px tabs + 50px footer; change it if the host's chrome differs) |
 
-Without `renderCreateApp` the store shows no "New App" button and no "Create App" empty-state action.
-`onUpdatedEntity("create", response)` closes the modal and opens `paths.studio(response.result.id)`.
+Without `renderCreateApp` the store shows no "Build your own app" banner (nor its rail icon) and no "Build
+an app" action on the organization's page. `onUpdatedEntity("create", response)` closes the modal and opens
+`paths.studio(response.result.id)`.
+
+The store's sidebar is a column from Bootstrap's xl (1200px) up, foldable into an icon rail by the person
+(remembered per host, Section 10); below xl it is always the rail, with the labels in tooltips. The layout
+uses Bootstrap's grid (`row`, `col-*`, `d-flex`), so the host must load Bootstrap 5 utilities (Adminto does).
 
 The page title (e.g. "StoneOS" in the navbar breadcrumb) is the host's concern; Mi Retail sets it with its
 `usePageMeta` hook in the two page files.
@@ -412,7 +439,7 @@ The SDK ships English. Pass only what differs; objects are deep-merged and funct
 Keys of `labels` (`LAUNCHPAD_LABELS`):
 
 `myApps`, `appStore`, `rail.{home, allApps, pinned, platforms}`, `prompt`, `searchPlaceholder`,
-`searchShortcut` (the hint pill, `⌘⇧A`), `recent`, `pinned`, `allApps`, `getMore`, `folderStoneOS`,
+`searchShortcut` (the hint pill, `/` — the key the field itself answers to on My apps and the App Store), `recent`, `pinned`, `allApps`, `getMore`, `folderStoneOS`,
 `folderClose`, `results(count)`, `noResults(term)`, `searchStore(term)`, `emptyHint`, `loadFailed`, `retry`,
 `copyBlocked`, `group.{defaultName, nameLabel, rename, removeFromGroup}`,
 `menu.{open, newTab, pin, unpin, copyLink, viewInStore, linkCopied, pinFailed}`.
@@ -455,9 +482,22 @@ With a locale switch, build the object from the active locale inside the host pr
 locale (Mi Retail: `useMemo(() => ({ ...copy.launchpad, copyBlocked, retry }), [copy])`). The rail and the
 pages re-render when it changes.
 
-`storeLabels` (`APP_STORE_LABELS`) covers the header, sidebar, category titles/subtitles
-(`categoryTitles`, `categorySubtitles`), cards (`card.*`), details panel (`details.*`), premium card
-(`premium.*`) and empty states (`empty.*`). Mi Retail passes none: its store is English in both locales.
+`storeLabels` (`APP_STORE_LABELS`) is the whole App Store and the runtime's "Get this app" state:
+`locale` (formats prices and dates), `searchPlaceholder`, `searchShortcut`, `loadFailed`, `retry`, `loading`
+(read by screen readers over a skeleton), `nav.*` (sidebar, and `back` for the Back link in the tabs bar — it
+retraces the history, or goes to the screen above when the page was opened directly), `build.*` (Build your own app), `discover.*` (`suggestedNote` is the one neutral line under "Suggested
+for you"; `seeAllSuites(count)` reads "See all N suites →", or "See all suites →" for one), `search.*`,
+`suites.*` (with `kindTitles` and `kindGroups` indexed by suite kind), `suite.*`, `category.*`,
+`organization.*`, `card.*` (Get, Buy · price, View / `viewApp(name)`, Open — only on an app's page — and the
+owner menu), `detail.*`, `acquire.*` (the three-step dialog), `notEntitled.*`, and the titles of every
+closed value **indexed by its backend catalog key**: `access`, `pricingModels`, `sorts`, `categoryTitles`,
+`categoryDescriptions`. A key the host does not translate falls back to the catalog's own `title`, so a
+category added in the backend still renders. No copy may say a payment was made: "Get", "Buy" and "Get the
+suite" grant access to the organization; charging is not part of the store yet.
+
+Mi Retail passes its `copy.appStore` tree for both locales (`src/i18n/{en,es}.js`, checked by
+`node src/i18n/parity.check.js`) through `LaunchpadHost`:
+`<LaunchpadProvider labels={labels} storeLabels={copy.appStore} … />`.
 
 ---
 
@@ -480,14 +520,36 @@ from launchpad); that choice is local (Section 10) and it comes back from the St
 `renderBridge(state)` is rendered first inside each page and must render nothing visible. The SDK passes:
 
 - My apps: `{ apps, pinned, query, setQuery, launch, searchRef }`.
-- App Store: `{ apps, selectedApp, loading, preferences, searchTerm, selectedCategory, selectedPublisher,
-  activeModal, setActiveModal, handleSearchChange, handleOpenApp, handleEditApp, handleCreateApp,
-  handleSelect, handleDeleteApp, handlePinApp, handleFavoriteApp }` (`handleCreateApp` is `null` without
-  `renderCreateApp`).
+- App Store: `{ view, query, category, suite, app, apps, totalItems, organization, suites, catalogs, views,
+  setQuery, navigateTo, acquire, open, createApp, activeModal, setActiveModal }`:
+  - `view` is one of `views` (`STORE_VIEWS`); `apps` is what the current screen shows (the pages loaded so
+    far), `totalItems` how many there are; `app` / `suite` are the current page's records.
+  - `navigateTo(view, { slug, category, query })` moves between screens; `open(app)` opens an app the
+    organization has; `acquire({ app } | { suite })` opens the confirmation dialog — the person still
+    confirms, the bridge never grants on its own; `createApp` is `null` without `renderCreateApp`.
 
-These are exactly the props the existing `AppLaunchpad.sommatic.jsx` and `AppEngineMarketplace.sommatic.jsx`
-take, so the host's bridge files are reused unchanged (Mi Retail's are the reference). Update each bridge's
-`PAGE_METADATA.path` to the host's routes. A host without the Command Center omits `renderBridge`.
+The store bridge is rendered on every screen, so a surface registered once must read the latest state:
+keep the props in a ref and read it inside the handlers (Mi Retail's `AppEngineMarketplace.sommatic.jsx`),
+instead of closing over the first render's props with `[]` deps. Update each bridge's `PAGE_METADATA.path` to
+the host's routes. A host without the Command Center omits `renderBridge`.
+
+### The host's own catalog reads
+
+A host that reads the App Engine catalog itself (Mi Retail and the Sommatic client feed the Command Center
+with `command-center-catalog`) must page through it and send the identity: the backend pages with its default
+`pageSize` and answers only for the caller's organization. Use the SDK instead of a bare `fetch`:
+
+```js
+import { AppEngineAppDefinitionService, createSessionIdentityHeaders, fetchAllPages } from "@link-loom/cloud-sdk";
+
+const service = new AppEngineAppDefinitionService({ baseUrl, getHeaders: () => createSessionIdentityHeaders(getToken()) });
+const response = await fetchAllPages((params) => service.getCommandCenterCatalog(params));
+// response.result.items is the whole catalog; a failed page returns that page's envelope.
+```
+
+`fetchAllPages(service, params)` walks `totalPages`; it takes a function `(params) => envelope` or a service
+with `getByParameters`. Do not ask for a large `pageSize` instead: the launchpad, `PinnedAppsWidget` and the
+store use the backend's default page size.
 
 ---
 
@@ -501,6 +563,7 @@ the app preference record, shared with every StoneOS host and the App Store's pi
 | `<ns>::launchpad::layout` | `{ order, pinnedOrder, platformOrder, groups[] }` — tile order and folders |
 | `<ns>::launchpad::recent` | last 8 opened ids |
 | `<ns>::launchpad::hidden-platforms` | platform ids taken off the rail |
+| `<ns>::app-store::sidebar-collapsed` | `"true"` when the person folded the store's sidebar into the rail (xl and up) |
 
 `<ns>` is `storageNamespace`. Mi Retail uses `miretail`, which keeps the keys it had before the move.
 A new host picks its own (`sommatic`, `llc`) and never changes it: a new namespace starts everyone from the
@@ -510,13 +573,20 @@ plain grid. Two tabs of the same host stay in sync through the `storage` event.
 
 ## 11. Theming
 
-Every colour, radius and shadow resolves a StoneOS kit token with Mi Retail's value as the fallback
-(`LAUNCHPAD_THEME`, `LAUNCHPAD_RAIL_THEME`). A host without the kit looks like Mi Retail's launchpad; a host
-with the kit (or that sets the tokens on `:root`) follows it. The brand-bearing ones:
+**The App Store is not themable.** It carries StoneOS's own palette
+(`src/components/app-engine/defaults/stoneos-store.palette.js`: accent `#3060c8`, ink `#1c1c1a`, warm-grey
+ground `#f3f2ef`, sidebar `#f7f6f3`…), declared as scoped custom properties (`--stos-store-*`) on the
+store's root and on its dialogs and menus, so neither the host's `--stos-*` tokens nor its MUI theme colour
+reach it. The tabs bar and the search field take the store's palette while the store is on screen.
+
+My apps and the rail follow the tokens below: every colour, radius and shadow resolves a StoneOS kit token
+with Mi Retail's value as the fallback (`LAUNCHPAD_THEME`, `LAUNCHPAD_RAIL_THEME`). A host without the kit
+looks like Mi Retail's launchpad; a host with the kit (or that sets the tokens on `:root`) follows it. The
+brand-bearing ones:
 
 | Token | Fallback | Used for |
 |---|---|---|
-| `--stos-brand` / `--stos-brand-hover` | `#3c4876` / `#2f3a5f` | drop frames, focus ring, App Store buttons, active category, pin state |
+| `--stos-brand` / `--stos-brand-hover` | `#3c4876` / `#2f3a5f` | drop frames, focus ring, pin state |
 | `--stos-text-tertiary` | `#737f94` | section labels, hints |
 | `--stos-border` / `--stos-border-strong` | `#e4e8ef` / `#d3d9e3` | tabs bar, search field, chips, folders |
 | `--stos-bg-page` / `--stos-bg-muted` | `#eff3f9` / `#f2f4f8` | shortcut pill, folders, tabs track |
@@ -571,13 +641,26 @@ My apps
 - [ ] Switch locale (if the host has one): every label follows.
 
 App Store
-- [ ] `/` focuses the search; category and publisher counts match the cards; Escape walks back
-      (details → sidebar → search → filters); arrows move the selection.
-- [ ] Click a card → details panel (markdown description, routes, contracts); premium apps show the premium
-      card on "Open App".
-- [ ] Pin/favorite from a card persists: after a reload the rail and My apps' Pinned show it. (The rail
-      does not refresh live from a store pin; pins made from the rail or My apps do sync live.)
-- [ ] "New App" opens the host's form in a modal; creating opens the studio.
+- [ ] `/` focuses the search; typing puts `?q=` in the URL and shows "Results for …"; clearing returns to
+      Discover; Escape clears.
+- [ ] Discover: the blue Featured banner (View → the app's page, never the app) + "Suggested for you" (one
+      row at xl, stacked below), highlighted suites with "See all suites →", and the grid loads the next
+      page as you scroll until "That is every app in the store"; "Show more" works too.
+- [ ] No host colour inside the store: every background is the warm grey ground or white cards; buttons
+      are pills. An app the organization has shows **View** everywhere but its own page, where it is
+      **Open**.
+- [ ] Every screen below Discover has its way back ("← App Store", "← All suites", "← Discover") in the
+      left cell of the tabs bar; My apps' bar is unchanged.
+- [ ] Sidebar counts (All suites, the organization's apps, each category) match the screens they open; the
+      fold control («) at the end of the Discover row folds the column (Discover itself still navigates),
+      » at the top of the rail unfolds it, and the fold survives a reload; below xl the rail shows a
+      tooltip per icon.
+- [ ] Slow the network: every screen draws its skeleton, never a progress bar.
+- [ ] An app's name opens `apps/:slug` (a page, not a drawer); media are images or videos from Storage.
+- [ ] Get on a free app → dialog → "Added to My apps" → the app is pinned on the rail at once and appears in
+      My apps; the card turns to View. Get the suite does the same for the suite's missing apps.
+- [ ] A public app the organization does not have, opened by its runtime URL, shows "Get this app".
+- [ ] "Build your own app" opens the host's form in a modal; creating opens the studio.
 
 Bridge (with the Command Center on)
 - [ ] `/snapshot-insight` on `page-context` returns the launchpad/store data; filling the launchpad search
@@ -601,8 +684,9 @@ Bridge (with the Command Center on)
   `.MuiMenuItem-root` with higher specificity wins; do not add global menu rules to fix a single menu.
 - **`platforms` built inline** re-derives the rail on every render; pass a module constant.
 - **Pins are shared** across hosts (same preference record); layouts and recents are not.
-- **A pin made in the App Store reaches the rail on the next load**, not live: the store writes the
-  preference itself and does not notify the launchpad hooks. Do not test "store pin → rail" without a reload.
+- **Getting an app pins it live**: the acquisition dialog pins through `useLaunchpadApps().togglePin`, the
+  same path the rail uses, so the rail updates without a reload.
+- **Mounting the store on `store` instead of `store/*`** leaves every screen but Discover unreachable.
 
 ---
 
@@ -617,4 +701,7 @@ Bridge (with the Command Center on)
 - `src/pages/bsh/link-loom-cloud/app-engine/{launchpad,marketplace}/*.page.jsx` — pages with the bridges and
   the create form.
 - `src/components/pages/bsh/link-loom-cloud/app-engine/{launchpad,marketplace}/*.sommatic.jsx` — bridges.
+- `src/routes/domains/bsh/link-loom-cloud/app-engine/app-engine.routes.jsx` — `store/*`.
+- `src/i18n/{en,es}.js` — `copy.launchpad` and `copy.appStore`.
+- `src/setup/useAppEngineDefinitionCatalog.js` — the Command Center catalog through `fetchAllPages`.
 - `src/components/layouts/navbar/NavbarBusiness.jsx` — the ⌘⇧A command (`keys: ["meta", "shift", "a"]`).

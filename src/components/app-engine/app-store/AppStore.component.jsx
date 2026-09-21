@@ -1,648 +1,245 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@veripass/react-sdk";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Box } from "@mui/material";
 import { PopUp } from "@link-loom/react-sdk";
 
-import { AppEngineSDKProvider, useAppEngineSDK } from "@/features/app-engine/context/AppEngineSDK.context";
-import { useLaunchpadConfig } from "@/features/app-engine/launchpad/LaunchpadConfig.context";
-import { getCategoryIcon } from "../categoryIcon.util";
+import { AppEngineSDKProvider } from "@/features/app-engine/context/AppEngineSDK.context";
+import { AppStoreProvider, useAppStore } from "@/features/app-engine/app-store/AppStore.context";
+import { STORE_QUERY, STORE_SEGMENTS, STORE_VIEWS } from "@/features/app-engine/app-store/app-store.routes";
 import StoneOSTabsComponent from "../launchpad/StoneOSTabs.component";
-import AppStoreHeaderBarComponent from "./subcomponents/AppStoreHeaderBar.component";
+import LaunchpadSearchFieldComponent from "../launchpad/LaunchpadSearchField.component";
+import { STORE_COLORS as COLORS } from "../defaults/stoneos-store.palette";
+import { STORE_ROOT_SX } from "./app-store.styles";
 import AppStoreSidebarComponent from "./subcomponents/AppStoreSidebar.component";
-import AppStoreGridComponent from "./subcomponents/AppStoreGrid.component";
-import AppStoreFeaturedComponent from "./subcomponents/AppStoreFeatured.component";
-import AppStoreDetailsComponent from "./subcomponents/AppStoreDetails.component";
+import AppStoreAcquireDialogComponent from "./subcomponents/AppStoreAcquireDialog.component";
+import { AppStoreBackLink } from "./subcomponents/AppStoreHeading.component";
+import { AppStoreErrorState } from "./subcomponents/AppStoreStatus.component";
+import AppStoreDiscoverComponent from "./views/AppStoreDiscover.component";
+import AppStoreSearchResultsComponent from "./views/AppStoreSearchResults.component";
+import AppStoreAllSuitesComponent from "./views/AppStoreAllSuites.component";
+import AppStoreSuiteComponent from "./views/AppStoreSuite.component";
+import AppStoreAppDetailComponent from "./views/AppStoreAppDetail.component";
+import AppStoreCategoryComponent from "./views/AppStoreCategory.component";
+import AppStoreOrganizationComponent from "./views/AppStoreOrganization.component";
 
-function getCategoryTitle(category, labels) {
-  if (!category) return labels.discover;
-  if (category === "pinned") return labels.pinnedTitle;
-  if (category === "favorites") return labels.favorites;
-  if (category === "official") return labels.officialTitle;
-  return labels.categoryTitles[category] || category.charAt(0).toUpperCase() + category.slice(1);
-}
+const SEARCH_DEBOUNCE_MS = 250;
 
-function getCategorySubtitle(category, labels) {
-  if (!category) return labels.discoverSubtitle;
-  if (category === "pinned") return labels.pinnedSubtitle;
-  if (category === "favorites") return labels.favoritesSubtitle;
-  if (category === "official") return labels.officialSubtitle;
-  return labels.categorySubtitles[category] || labels.categoryFallbackSubtitle;
-}
+// The StoneOS tabs bar, in the store's palette.
+const TABS_PALETTE = { surface: COLORS.surface, border: COLORS.hairlineSoft, track: COLORS.tabTrack, text: COLORS.ink, textMuted: COLORS.textSecondary };
 
-function AppStoreInner({ renderBridge, renderCreateApp, contentHeight }) {
-  const navigate = useNavigate();
-  const { storeLabels: labels, paths } = useLaunchpadConfig();
-  // The launchpad hands a search over when it has nothing local to show
-  // ("Search the App Store for …"), so the person lands with it already typed.
+// Where Back lands when there is nothing to go back to — the screen was opened directly from a link
+// or a new tab. Discover and the results have no Back.
+const fallbackViewOf = (view) =>
+  ({
+    [STORE_VIEWS.app]: STORE_VIEWS.discover,
+    [STORE_VIEWS.suite]: STORE_VIEWS.suites,
+    [STORE_VIEWS.suites]: STORE_VIEWS.discover,
+    [STORE_VIEWS.category]: STORE_VIEWS.discover,
+    [STORE_VIEWS.organization]: STORE_VIEWS.discover,
+  })[view] || null;
+
+// The router numbers each entry of this tab's history; 0 is the page the tab was opened on.
+const hasPreviousEntry = () => Number(window.history.state?.idx) > 0;
+
+function DiscoverRoute() {
   const [searchParams] = useSearchParams();
-  useEffect(() => {
-    const handed = searchParams.get("q");
-    if (handed) setSearchTerm(handed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const { user } = useAuth();
-  const { appDefinitionService, appPreferenceService } = useAppEngineSDK();
+  const query = (searchParams.get(STORE_QUERY.search) || "").trim();
 
-  const organizationId = user?.payload?.organization_id;
-  const userIdentity = user?.identity;
+  return query ? <AppStoreSearchResultsComponent query={query} /> : <AppStoreDiscoverComponent />;
+}
 
-  const [apps, setApps] = useState([]);
-  const [preferences, setPreferences] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedPublisher, setSelectedPublisher] = useState(null);
-  const [selectedApp, setSelectedApp] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [focusedIndex, setFocusedIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [showDetailsPanel, setShowDetailsPanel] = useState(false);
-  const [activeModal, setActiveModal] = useState(null);
-  const [focusZone, setFocusZone] = useState("grid"); // "grid" | "sidebar"
-  const [sidebarFocusedIndex, setSidebarFocusedIndex] = useState(0);
+function SuiteRoute() {
+  const { slug } = useParams();
+  return <AppStoreSuiteComponent slug={slug} />;
+}
 
-  const searchInputRef = useRef(null);
-  const visibleItemsRef = useRef([]);
-  const focusedIndexRef = useRef(0);
-  const gridContainerRef = useRef(null);
+function AppRoute() {
+  const { slug } = useParams();
+  return <AppStoreAppDetailComponent slug={slug} />;
+}
 
-  // Data fetching
-  const initializeComponent = async () => {
-    try {
-      const [defsResponse, prefsResponse] = await Promise.allSettled([
-        appDefinitionService.getMarketplace({ organization_id: organizationId, pageSize: 200 }),
-        userIdentity ? appPreferenceService.getByParameters({ queryselector: "user", search: userIdentity }) : Promise.resolve(null),
-      ]);
+function CategoryRoute() {
+  const { category } = useParams();
+  return <AppStoreCategoryComponent category={category} />;
+}
 
-      setLoading(false);
+function AppStoreShell({ renderBridge, renderCreateApp, contentHeight, activeModal, setActiveModal }) {
+  // -----------------------------------------------------
+  // 1. Hooks
+  // -----------------------------------------------------
+  const store = useAppStore();
+  const { labels, current, navigateTo, acquire, openApp, acquireTarget, closeAcquire, setScrollRoot, scrollRoot, viewData, facets, catalogs, suites, hasError, retryAll, createApp } = store;
 
-      const appItems = defsResponse.status === "fulfilled" && defsResponse.value?.success ? defsResponse.value.result.items || [] : [];
+  // -----------------------------------------------------
+  // 2. Models / State
+  // -----------------------------------------------------
+  const [term, setTerm] = useState(current.query);
+  const searchRef = useRef(null);
 
-      // Build preference map and merge into apps
-      const prefsMap = {};
-      if (prefsResponse.status === "fulfilled" && prefsResponse.value?.result?.items) {
-        for (const pref of prefsResponse.value.result.items) {
-          prefsMap[pref.app_definition_id] = pref;
-        }
+  // -----------------------------------------------------
+  // 4. Configs / Constants
+  // -----------------------------------------------------
+  const navigate = useNavigate();
+  const fallbackView = fallbackViewOf(current.view);
+
+  // Back retraces the person's own steps, wherever they came from; only a screen opened directly
+  // falls back to the one above it.
+  const goBack = useCallback(() => {
+    if (hasPreviousEntry()) {
+      navigate(-1);
+      return;
+    }
+
+    navigateTo(fallbackView);
+  }, [navigate, navigateTo, fallbackView]);
+
+  // -----------------------------------------------------
+  // 5. Component Functions
+  // -----------------------------------------------------
+  const commitSearch = useCallback(
+    (value) => {
+      const next = value.trim();
+
+      if (next === current.query) {
+        return;
       }
-      setPreferences(prefsMap);
 
-      const enrichedApps = appItems.map((app) => {
-        const pref = prefsMap[app.id];
-        return {
-          ...app,
-          is_pinned: pref?.is_pinned || false,
-          is_favorite: pref?.is_favorite || false,
-        };
-      });
+      if (next) {
+        navigateTo(STORE_VIEWS.search, { query: next, replace: current.view === STORE_VIEWS.search });
+        return;
+      }
 
-      setApps(enrichedApps);
-    } catch (error) {
-      console.error("Failed to load app definitions:", error);
-      setLoading(false);
-      setApps([]);
-    }
+      if (current.view === STORE_VIEWS.search) {
+        navigateTo(STORE_VIEWS.discover, { replace: true });
+      }
+    },
+    [current.query, current.view, navigateTo],
+  );
+
+  const onSearchKeyDown = (event) => {
+    if (event.key === "Escape") setTerm("");
+    if (event.key === "Enter") commitSearch(term);
   };
-
-  useEffect(() => {
-    initializeComponent();
-  }, []);
-
-  // Filtering
-  const filteredItems = useMemo(() => {
-    let result = apps;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter((app) => {
-        if (app.name?.toLowerCase().includes(term)) return true;
-        if (app.slug?.toLowerCase().includes(term)) return true;
-        if (app.tags?.some((t) => {
-          const tagText = typeof t === "string" ? t : t?.name || t?.title || "";
-          return tagText.toLowerCase().includes(term);
-        })) return true;
-        const firstLine = app.description?.split("\n").find((line) => line.trim() !== "")?.trim() || "";
-        return firstLine.toLowerCase().includes(term);
-      });
-      return result;
-    }
-
-    if (selectedPublisher) {
-      result = result.filter((app) => {
-        const pubName = app.publisher?.name || app.publisher?.profile?.name;
-        return pubName === selectedPublisher;
-      });
-    }
-
-    if (selectedCategory === "pinned") {
-      result = result.filter((app) => app.is_pinned);
-    } else if (selectedCategory === "favorites") {
-      result = result.filter((app) => app.is_favorite);
-    } else if (selectedCategory === "official") {
-      result = result.filter((app) => app.is_official);
-    } else if (selectedCategory) {
-      result = result.filter((app) => {
-        const rawCat = app.category || app.manifest?.kind;
-        const cat = typeof rawCat === "string" ? rawCat : rawCat?.name || rawCat?.title || "";
-        return cat === selectedCategory;
-      });
-    }
-
-    return result;
-  }, [apps, selectedCategory, selectedPublisher, searchTerm]);
-
-  // Unified visible items list — matches what the user sees on screen top-to-bottom
-  const showSections = !selectedCategory && !searchTerm && !selectedPublisher;
-
-  const { visibleItems, featuredSlice, orgSlice, allAppsSlice } = useMemo(() => {
-    if (!showSections) {
-      return {
-        visibleItems: filteredItems,
-        featuredSlice: null,
-        orgSlice: null,
-        allAppsSlice: { start: 0, end: filteredItems.length },
-      };
-    }
-
-    const featured = apps.filter((app) => app.is_featured === true).slice(0, 4);
-    const featuredIds = new Set(featured.map((a) => a.id));
-
-    const org = filteredItems.filter((app) => app.organization_id === organizationId && !app.is_official && !featuredIds.has(app.id));
-    const orgIds = new Set(org.map((a) => a.id));
-
-    const allRest = filteredItems.filter((app) => !featuredIds.has(app.id) && !orgIds.has(app.id));
-    const unified = [...featured, ...org, ...allRest];
-
-    return {
-      visibleItems: unified,
-      featuredSlice: featured.length > 0 ? { start: 0, end: featured.length } : null,
-      orgSlice: org.length > 0 ? { start: featured.length, end: featured.length + org.length } : null,
-      allAppsSlice: { start: featured.length + org.length, end: unified.length },
-    };
-  }, [apps, filteredItems, showSections, organizationId]);
-
-  // Build sidebar navigable items list (mirrors visual order)
-  const sidebarItems = useMemo(() => {
-    const items = [{ type: "category", key: null, label: labels.allApps }];
-    const pinnedCount = apps.filter((a) => a.is_pinned).length;
-    const favoritesCount = apps.filter((a) => a.is_favorite).length;
-    const officialCount = apps.filter((a) => a.is_official).length;
-    if (pinnedCount > 0) items.push({ type: "category", key: "pinned", label: labels.pinned });
-    if (favoritesCount > 0) items.push({ type: "category", key: "favorites", label: labels.favorites });
-    if (officialCount > 0) items.push({ type: "category", key: "official", label: labels.official });
-
-    const catMap = new Map();
-    for (const app of apps) {
-      const rawCat = app.category || app.manifest?.kind || "uncategorized";
-      const cat = typeof rawCat === "string" ? rawCat : rawCat?.name || rawCat?.title || "uncategorized";
-      if (!catMap.has(cat)) catMap.set(cat, true);
-    }
-    const CATEGORY_ORDER = { workspace: 0, utility: 1, hitl: 2, ai: 3, analytics: 4, integration: 5, forms: 6, form: 6, data: 7 };
-    const sortedCats = Array.from(catMap.keys()).sort((a, b) => (CATEGORY_ORDER[a] ?? 99) - (CATEGORY_ORDER[b] ?? 99));
-    for (const cat of sortedCats) {
-      items.push({ type: "category", key: cat, label: cat });
-    }
-    return items;
-  }, [apps, labels]);
-
-  // Keep refs in sync for keyboard handler
-  visibleItemsRef.current = visibleItems;
-  focusedIndexRef.current = focusedIndex;
-
-  // Dynamic columns per row — matches CSS grid: repeat(auto-fill, minmax(220px, 1fr))
-  const getColumnsPerRow = useCallback(() => {
-    const container = gridContainerRef.current;
-    if (!container) return 4;
-    const width = container.offsetWidth;
-    return Math.max(1, Math.floor((width + 16) / (220 + 16)));
-  }, []);
-
-  // Auto-select first item when visible list changes
-  useEffect(() => {
-    if (visibleItems.length > 0) {
-      setSelectedApp(visibleItems[0]);
-      setFocusedIndex(0);
-      setFocusZone("grid");
-    } else {
-      setSelectedApp(null);
-      setFocusedIndex(-1);
-    }
-  }, [visibleItems]);
-
-  // Handlers
-  const handleOpenApp = useCallback(
-    (app) => {
-      navigate(paths.runtime(app.slug));
-    },
-    [navigate, paths]
-  );
-
-  const handleEditApp = useCallback(
-    (app) => {
-      navigate(paths.studio(app.id));
-    },
-    [navigate, paths]
-  );
-
-  // "New App" exists only when the host provides the form that creates one.
-  const handleCreateApp = useMemo(() => (renderCreateApp ? () => setActiveModal("create") : null), [renderCreateApp]);
 
   const onUpdatedEntity = useCallback(
     (action, response) => {
-      if (action === "create" && response?.success && response?.result?.id) {
-        navigate(paths.studio(response.result.id));
-      }
       setActiveModal(null);
+      if (action === "create" && response?.success && response?.result?.id) store.editApp(response.result);
     },
-    [navigate, paths]
+    [setActiveModal, store],
   );
 
-  const handleDeleteApp = useCallback(
-    async (app) => {
-      try {
-        await appDefinitionService.delete({ id: app.id });
-        setApps((prev) => prev.filter((a) => a.id !== app.id));
-        if (selectedApp?.id === app.id) {
-          setSelectedApp(null);
-          setShowDetailsPanel(false);
-        }
-      } catch (error) {
-        console.error("Failed to delete app:", error);
-      }
-    },
-    [appDefinitionService, selectedApp]
-  );
-
-  const handlePinApp = useCallback(async (app) => {
-    const newPinned = !app.is_pinned;
-    setApps((prev) => prev.map((a) => (a.id === app.id ? { ...a, is_pinned: newPinned } : a)));
-
-    try {
-      const existingPref = preferences[app.id];
-      if (existingPref?.id) {
-        await appPreferenceService.update({ id: existingPref.id, is_pinned: newPinned });
-        setPreferences((prev) => ({ ...prev, [app.id]: { ...existingPref, is_pinned: newPinned } }));
-      } else {
-        const response = await appPreferenceService.create({
-          user_id: userIdentity,
-          app_definition_id: app.id,
-          organization_id: organizationId,
-          is_pinned: newPinned,
-          is_favorite: app.is_favorite || false,
-        });
-        if (response?.success && response?.result) {
-          setPreferences((prev) => ({ ...prev, [app.id]: response.result }));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to persist pin:", error);
-    }
-  }, [preferences, appPreferenceService, userIdentity, organizationId]);
-
-  const handleFavoriteApp = useCallback(async (app) => {
-    const newFavorite = !app.is_favorite;
-    setApps((prev) => prev.map((a) => (a.id === app.id ? { ...a, is_favorite: newFavorite } : a)));
-
-    try {
-      const existingPref = preferences[app.id];
-      if (existingPref?.id) {
-        await appPreferenceService.update({ id: existingPref.id, is_favorite: newFavorite });
-        setPreferences((prev) => ({ ...prev, [app.id]: { ...existingPref, is_favorite: newFavorite } }));
-      } else {
-        const response = await appPreferenceService.create({
-          user_id: userIdentity,
-          app_definition_id: app.id,
-          organization_id: organizationId,
-          is_pinned: app.is_pinned || false,
-          is_favorite: newFavorite,
-        });
-        if (response?.success && response?.result) {
-          setPreferences((prev) => ({ ...prev, [app.id]: response.result }));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to persist favorite:", error);
-    }
-  }, [preferences, appPreferenceService, userIdentity, organizationId]);
-
-  const handleSelect = useCallback((app) => {
-    setSelectedApp(app);
-    setShowDetailsPanel(true);
-    const idx = visibleItemsRef.current.findIndex((a) => a.id === app?.id);
-    if (idx >= 0) setFocusedIndex(idx);
-  }, []);
-
-  const handleCloseDetails = useCallback(() => {
-    setShowDetailsPanel(false);
-  }, []);
-
-  const handleRequestPremium = useCallback((slug, requestType) => {
-    // TODO: Integrate with premium/subscription service
-    console.warn(`Premium request: ${requestType} for ${slug}`);
-  }, []);
-
-  // Search change handler
-  const handleSearchChange = useCallback((val) => {
-    setSearchTerm(val);
-    if (val) {
-      setSelectedCategory(null);
-      setSelectedPublisher(null);
-    }
-    setFocusedIndex(-1);
-  }, []);
-
-  // Scroll the focused card into view
-  const scrollToFocusedApp = useCallback((appId) => {
-    if (!appId) return;
-    requestAnimationFrame(() => {
-      const card = gridContainerRef.current?.querySelector(`[data-app-id="${appId}"]`);
-      if (card) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }, []);
-
-  // Keyboard navigation — two zones: sidebar + grid
+  // -----------------------------------------------------
+  // 6. Lifecycle
+  // -----------------------------------------------------
+  // The URL is the truth: a search handed over by My apps (`?q=`) fills the field, and leaving the
+  // results for another screen empties it.
   useEffect(() => {
-    const isInputFocused = () => document.activeElement?.tagName === "INPUT";
+    setTerm((value) => (value.trim() === current.query ? value : current.query));
+  }, [current.query]);
 
-    const navigateGrid = (nextIndex) => {
-      const items = visibleItemsRef.current;
-      const clamped = Math.max(0, Math.min(nextIndex, items.length - 1));
-      if (items[clamped]) {
-        setSelectedApp(items[clamped]);
-        scrollToFocusedApp(items[clamped].id);
-      }
-      return clamped;
-    };
+  useEffect(() => {
+    if (term.trim() === current.query) return undefined;
+    const timer = setTimeout(() => commitSearch(term), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [term, current.query, commitSearch]);
 
-    const handleKeyDown = (e) => {
-      if (e.key === "/" && !isInputFocused()) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
+  // A new screen starts at its top.
+  useEffect(() => {
+    if (scrollRoot) scrollRoot.scrollTop = 0;
+  }, [current.view, current.app, current.suite, current.category, scrollRoot]);
 
-      // === ESCAPE CASCADE ===
-      if (e.key === "Escape") {
-        if (showDetailsPanel) {
-          setShowDetailsPanel(false);
-        } else if (focusZone === "grid") {
-          setFocusZone("sidebar");
-          // Set sidebar focus to match current category
-          const currentKey = selectedCategory;
-          const idx = sidebarItems.findIndex((item) => item.key === currentKey);
-          setSidebarFocusedIndex(idx >= 0 ? idx : 0);
-        } else if (searchTerm) {
-          setSearchTerm("");
-        } else if (selectedCategory || selectedPublisher) {
-          setSelectedCategory(null);
-          setSelectedPublisher(null);
-          setSidebarFocusedIndex(0);
-        }
-        return;
-      }
-
-      // === SIDEBAR ZONE ===
-      if (focusZone === "sidebar") {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setSidebarFocusedIndex((prev) => Math.min(prev + 1, sidebarItems.length - 1));
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setSidebarFocusedIndex((prev) => Math.max(prev - 1, 0));
-          return;
-        }
-        if (e.key === "Enter") {
-          e.preventDefault();
-          const item = sidebarItems[sidebarFocusedIndex];
-          if (item) {
-            setSelectedCategory(item.key);
-            setSelectedPublisher(null);
-          }
-          return;
-        }
-        if (e.key === "ArrowRight") {
-          e.preventDefault();
-          setFocusZone("grid");
-          setFocusedIndex(0);
-          const items = visibleItemsRef.current;
-          if (items[0]) setSelectedApp(items[0]);
-          return;
-        }
-        return;
-      }
-
-      // === GRID ZONE ===
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        if (isInputFocused()) return;
-        setFocusedIndex((prev) => navigateGrid(prev + 1));
-        return;
-      }
-
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (isInputFocused()) return;
-        setFocusedIndex((prev) => {
-          if (prev <= 0 || prev % getColumnsPerRow() === 0) {
-            // At leftmost column — move to sidebar
-            setFocusZone("sidebar");
-            const currentKey = selectedCategory;
-            const idx = sidebarItems.findIndex((item) => item.key === currentKey);
-            setSidebarFocusedIndex(idx >= 0 ? idx : 0);
-            return prev;
-          }
-          return navigateGrid(prev - 1);
-        });
-        return;
-      }
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (isInputFocused()) document.activeElement.blur();
-        const cols = getColumnsPerRow();
-        setFocusedIndex((prev) => navigateGrid(prev + cols));
-        return;
-      }
-
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (isInputFocused()) document.activeElement.blur();
-        const cols = getColumnsPerRow();
-        setFocusedIndex((prev) => navigateGrid(prev - cols));
-        return;
-      }
-
-      if (e.key === "Enter" && !isInputFocused()) {
-        const currentIndex = focusedIndexRef.current;
-        const currentItems = visibleItemsRef.current;
-        if (currentIndex >= 0 && currentIndex < currentItems.length) {
-          if (e.ctrlKey || e.metaKey) {
-            handleOpenApp(currentItems[currentIndex]);
-          } else {
-            setSelectedApp(currentItems[currentIndex]);
-            setShowDetailsPanel((prev) => !prev);
-          }
-        }
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showDetailsPanel, searchTerm, selectedCategory, selectedPublisher, focusZone, sidebarFocusedIndex, sidebarItems, handleOpenApp, getColumnsPerRow, scrollToFocusedApp]);
-
-  const gridFocusedIndex = focusZone === "grid" ? focusedIndex : -1;
-  const gridSelectedAppId = focusZone === "grid" ? selectedApp?.id : null;
-
+  // -----------------------------------------------------
+  // 7. Render
+  // -----------------------------------------------------
   return (
     <>
       {renderBridge?.({
-        apps,
-        selectedApp,
-        loading,
-        preferences,
-        searchTerm,
-        selectedCategory,
-        selectedPublisher,
+        view: current.view,
+        query: current.query,
+        category: current.category || null,
+        suite: viewData.suite || (current.suite ? { slug: current.suite } : null),
+        app: viewData.app || (current.app ? { slug: current.app } : null),
+        apps: viewData.items,
+        totalItems: viewData.totalItems,
+        organization: facets?.organization || null,
+        suites,
+        catalogs,
+        views: STORE_VIEWS,
+        setQuery: setTerm,
+        navigateTo,
+        acquire,
+        open: openApp,
+        createApp,
         activeModal,
         setActiveModal,
-        handleSearchChange,
-        handleOpenApp,
-        handleEditApp,
-        handleCreateApp,
-        handleSelect,
-        handleDeleteApp,
-        handlePinApp,
-        handleFavoriteApp,
       })}
-      {/* The store is the other half of StoneOS, so it carries the same way
-          back — in its own row, above the catalog's own header. */}
-      <StoneOSTabsComponent value="store" />
-      <section className="d-flex flex-column" style={{ height: contentHeight }}>
-        <AppStoreHeaderBarComponent
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          searchInputRef={searchInputRef}
-          onCreateApp={handleCreateApp}
+
+      {/* The store's root: its palette as scoped custom properties, so no host colour reaches it.
+          `display: contents` keeps the tabs bar and the store exactly where the host lays them out. */}
+      <Box data-loom-app-store="" sx={{ ...STORE_ROOT_SX, display: "contents" }}>
+        {/* The store is the other half of StoneOS, so it carries the same tabs; its way back to the
+            screen above lives in the bar's left cell. */}
+        <StoneOSTabsComponent
+          value="store"
+          palette={TABS_PALETTE}
+          leading={
+            fallbackView ? <AppStoreBackLink label={labels.nav.back} onClick={goBack} /> : null
+          }
         />
 
-        <div className="d-flex flex-grow-1 overflow-hidden position-relative">
-          <AppStoreSidebarComponent
-            apps={apps}
-            collapsed={showDetailsPanel}
-            selectedCategory={selectedCategory}
-            onSelectCategory={(cat) => {
-              setSelectedCategory(cat);
-              setFocusedIndex(-1);
-              setFocusZone("grid");
-            }}
-            selectedPublisher={selectedPublisher}
-            onSelectPublisher={(pub) => {
-              setSelectedPublisher(pub);
-              setFocusedIndex(-1);
-              setFocusZone("grid");
-            }}
-            sidebarItems={sidebarItems}
-            sidebarFocusedIndex={focusZone === "sidebar" ? sidebarFocusedIndex : -1}
-          />
+        <Box component="section" className="d-flex" sx={{ height: contentHeight, minHeight: 0, backgroundColor: COLORS.canvas }}>
+          <AppStoreSidebarComponent />
 
-          <div ref={gridContainerRef} className="d-flex flex-column flex-grow-1 overflow-auto" style={{ minWidth: 0 }}>
-            {/* Category title + subtitle */}
-            <div className="px-4 pt-3">
-              <h5 className="mb-1">{getCategoryTitle(selectedCategory, labels)}</h5>
-              <p className="text-muted mb-0 small">{getCategorySubtitle(selectedCategory, labels)}</p>
-            </div>
-
-            {/* Featured tiles */}
-            {showSections && featuredSlice && (
-              <AppStoreFeaturedComponent
-                apps={visibleItems.slice(featuredSlice.start, featuredSlice.end)}
-                onSelect={handleSelect}
-                onOpenApp={handleOpenApp}
-                selectedAppId={gridSelectedAppId}
-                focusedIndex={gridFocusedIndex}
-                indexOffset={featuredSlice.start}
-                getCategoryIcon={getCategoryIcon}
-              />
-            )}
-
-            {/* Organization Apps */}
-            {showSections && orgSlice && (
-              <AppStoreGridComponent
-                apps={visibleItems.slice(orgSlice.start, orgSlice.end)}
-                selectedAppId={gridSelectedAppId}
-                focusedIndex={gridFocusedIndex}
-                indexOffset={orgSlice.start}
-                onSelect={handleSelect}
-                onOpenApp={handleOpenApp}
-                onEditApp={handleEditApp}
-                onPinApp={handlePinApp}
-                onFavoriteApp={handleFavoriteApp}
-                onDeleteApp={handleDeleteApp}
-                searchTerm=""
-                loading={false}
-                selectedCategory={null}
-                onClearFilters={() => {}}
-                onCreateApp={handleCreateApp}
-                getCategoryIcon={getCategoryIcon}
-                sectionLabel={labels.organizationApps}
-                userOrganizationId={organizationId}
-              />
-            )}
-
-            {/* All Apps Grid */}
-            <AppStoreGridComponent
-              apps={showSections ? visibleItems.slice(allAppsSlice.start, allAppsSlice.end) : visibleItems}
-              selectedAppId={gridSelectedAppId}
-              focusedIndex={gridFocusedIndex}
-              indexOffset={allAppsSlice.start}
-              onSelect={handleSelect}
-              onOpenApp={handleOpenApp}
-              onEditApp={handleEditApp}
-              onPinApp={handlePinApp}
-              onFavoriteApp={handleFavoriteApp}
-              onDeleteApp={handleDeleteApp}
-              searchTerm={searchTerm}
-              loading={loading}
-              selectedCategory={selectedCategory}
-              onClearFilters={() => {
-                setSearchTerm("");
-                setSelectedCategory(null);
-                setSelectedPublisher(null);
+          <Box ref={setScrollRoot} className="flex-grow-1" sx={{ minWidth: 0, overflowY: "auto", position: "relative", backgroundColor: COLORS.canvas }}>
+            <Box
+              className="d-flex justify-content-center"
+              sx={{
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                px: { xs: 2, md: 5 },
+                py: 1.75,
+                backgroundColor: `color-mix(in srgb, ${COLORS.canvas} 92%, transparent)`,
+                backdropFilter: "blur(10px)",
+                borderBottom: `1px solid ${COLORS.hairlineSoft}`,
               }}
-              onCreateApp={handleCreateApp}
-              getCategoryIcon={getCategoryIcon}
-              sectionLabel={showSections ? labels.allApps : null}
-              userOrganizationId={organizationId}
-            />
-          </div>
+            >
+              <LaunchpadSearchFieldComponent
+                inputRef={searchRef}
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                onKeyDown={onSearchKeyDown}
+                placeholder={labels.searchPlaceholder}
+                shortcut={labels.searchShortcut}
+              />
+            </Box>
 
-          {/* Details panel */}
-          {showDetailsPanel && (
-            <AppStoreDetailsComponent
-              app={selectedApp}
-              onOpenApp={handleOpenApp}
-              onEditApp={handleEditApp}
-              onPinApp={handlePinApp}
-              onFavoriteApp={handleFavoriteApp}
-              onClose={handleCloseDetails}
-              onRequestPremium={handleRequestPremium}
-              getCategoryIcon={getCategoryIcon}
-              userOrganizationId={organizationId}
-            />
-          )}
-        </div>
-      </section>
+            <Box sx={{ p: { xs: "24px 16px 48px", md: "28px 40px 56px" }, boxSizing: "border-box" }}>
+              {hasError && !catalogs.categories.length && <AppStoreErrorState title={labels.loadFailed} retryLabel={labels.retry} onRetry={retryAll} />}
+              <Routes>
+                <Route index element={<DiscoverRoute />} />
+                <Route path={STORE_SEGMENTS.suites} element={<AppStoreAllSuitesComponent />} />
+                <Route path={`${STORE_SEGMENTS.suites}/:slug`} element={<SuiteRoute />} />
+                <Route path={`${STORE_SEGMENTS.apps}/:slug`} element={<AppRoute />} />
+                <Route path={`${STORE_SEGMENTS.categories}/:category`} element={<CategoryRoute />} />
+                <Route path={STORE_SEGMENTS.organization} element={<AppStoreOrganizationComponent />} />
+                <Route path="*" element={<Navigate to={store.storePaths.discover()} replace />} />
+              </Routes>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      {acquireTarget && <AppStoreAcquireDialogComponent key={acquireTarget.app?.slug || acquireTarget.suite?.slug} target={acquireTarget} onClose={closeAcquire} />}
 
       <PopUp
         data-testid="popup-modal"
         id="popup-modal"
         isOpen={Boolean(activeModal)}
-        setIsOpen={(isOpen) => setActiveModal(isOpen ? Boolean(activeModal) : null)}
+        setIsOpen={(isOpen) => setActiveModal(isOpen ? activeModal : null)}
         className="col-lg-4 col-md-8 col-12"
-        styles={{
-          closeButtonColor: "text-black-50",
-        }}
+        styles={{ closeButtonColor: "text-black-50" }}
       >
         {activeModal === "create" && renderCreateApp?.({ onUpdatedEntity, onClose: () => setActiveModal(null) })}
       </PopUp>
@@ -650,16 +247,38 @@ function AppStoreInner({ renderBridge, renderCreateApp, contentHeight }) {
   );
 }
 
+function AppStoreInner({ renderBridge, renderCreateApp, contentHeight }) {
+  const [activeModal, setActiveModal] = useState(null);
+  // "Build your own app" exists only when the host provides the form that creates one.
+  const openCreate = useCallback(() => setActiveModal("create"), []);
+
+  return (
+    <AppStoreProvider onCreateApp={renderCreateApp ? openCreate : null}>
+      <AppStoreShell
+        renderBridge={renderBridge}
+        renderCreateApp={renderCreateApp}
+        contentHeight={contentHeight}
+        activeModal={activeModal}
+        setActiveModal={setActiveModal}
+      />
+    </AppStoreProvider>
+  );
+}
+
 /**
- * The App Store: the organization's catalog with categories, publishers, search (`/` focuses it),
- * featured apps, a details panel, pin/favorite and, for apps the organization owns, edit/delete.
+ * The App Store. The host mounts it on a splat route (`store/*`) at `paths.store`; every screen is a
+ * route under it — Discover (`?q=` for the search), `suites`, `suites/:slug`, `apps/:slug`,
+ * `categories/:category` and `organization` — so links are shareable and the back button works.
  *
- * - `renderCreateApp({ onUpdatedEntity, onClose })` renders the host's create form inside the store's
- *   modal; without it there is no "New App" button. `onUpdatedEntity("create", response)` opens the new
- *   app in the studio.
- * - `renderBridge(state)` mounts the host's context bridge (e.g. the Sommatic Command Center); it
- *   should render nothing visible.
- * - `contentHeight` is the height of the catalog below the tabs; the default fits a 70px top bar, the
+ * - `renderCreateApp({ onUpdatedEntity, onClose })` renders the host's create form in the store's
+ *   modal ("Build your own app"); without it there is no build entry. `onUpdatedEntity("create",
+ *   response)` opens the new app in the Studio.
+ * - `renderBridge(state)` mounts the host's context bridge (e.g. the Sommatic Command Center) with
+ *   `{ view, query, category, suite, app, apps, totalItems, organization, suites, catalogs, views,
+ *   setQuery, navigateTo, acquire, open, createApp, activeModal, setActiveModal }`; it should render
+ *   nothing visible. `acquire({ app } | { suite })` opens the confirmation dialog — the person still
+ *   confirms — and `navigateTo(view, { slug, category, query })` moves between the store's screens.
+ * - `contentHeight` is the height of the store below the tabs; the default fits a 70px top bar, the
  *   52px tabs bar and a 50px footer.
  */
 function AppStoreComponent({ baseUrl, renderBridge, renderCreateApp, contentHeight = "calc(100vh - 172px)" }) {

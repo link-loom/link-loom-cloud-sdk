@@ -4,6 +4,7 @@ import { Typography, CircularProgress } from "@mui/material";
 import styled from "styled-components";
 import { useAppEngineSDK } from "@/features/app-engine/context/AppEngineSDK.context";
 import { useAuth } from "@veripass/react-sdk";
+import fetchAllPages from "@/services/utils/fetchAllPages";
 import AppIcon from "@/components/app-engine/AppIcon.component";
 import { getCategoryIcon, getCategoryTint } from "@/components/app-engine/categoryIcon.util";
 
@@ -61,7 +62,7 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
 
     const fetchPinnedApps = async () => {
       try {
-        const prefResponse = await appPreferenceService.getByParameters({ queryselector: "user", search: userIdentity });
+        const prefResponse = await fetchAllPages(appPreferenceService, { queryselector: "user", search: userIdentity });
         const prefs = prefResponse?.result?.items || [];
         const pinnedPrefs = prefs.filter((p) => p.is_pinned);
 
@@ -71,8 +72,8 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
           return;
         }
 
-        const defResponse = await appDefinitionService.getMarketplace({ organization_id: organizationId, pageSize: 200 });
-        const allApps = defResponse?.result?.items || [];
+        const defResponse = await fetchAllPages((params) => appDefinitionService.getMarketplace(params), { organization_id: organizationId });
+        const allApps = defResponse?.success ? defResponse.result.items : [];
 
         const pinnedAppIds = new Set(pinnedPrefs.map((p) => p.app_definition_id));
         const matched = allApps.filter((app) => pinnedAppIds.has(app.id)).slice(0, maxItems);

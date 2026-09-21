@@ -12,6 +12,7 @@ export { default as AppLaunchpadComponent } from './components/app-engine/launch
 export { default as AppStoreComponent } from './components/app-engine/app-store/AppStore.component';
 export { default as StoneOSTabsComponent } from './components/app-engine/launchpad/StoneOSTabs.component';
 export { default as StoneOSMark } from './components/app-engine/launchpad/StoneOSMark.component';
+export { default as LaunchpadSearchFieldComponent } from './components/app-engine/launchpad/LaunchpadSearchField.component';
 export { default as CatalogAppIconComponent, hasSvgAppIcon } from './components/app-engine/CatalogAppIcon.component';
 export { LaunchpadProvider, useLaunchpadConfig } from './features/app-engine/launchpad/LaunchpadConfig.context';
 export { default as useLaunchpadApps, toPlatformEntry } from './features/app-engine/launchpad/useLaunchpadApps.hook';
@@ -23,6 +24,23 @@ export {
   LAUNCHPAD_STORAGE_NAMESPACE,
 } from './components/app-engine/defaults/launchpad.defaults';
 export { LAUNCHPAD_THEME, LAUNCHPAD_RAIL_THEME } from './components/app-engine/defaults/launchpad.theme';
+// App Store closed values and routes — see docs/12-app-store-suites-entitlements.md
+export {
+  STORE_CATEGORIES,
+  STORE_SCOPES,
+  STORE_SORTS,
+  STORE_ACCESS_STATES,
+  STORE_PRICING_MODELS,
+  STORE_MEDIA_TYPES,
+  STORE_VISIBILITIES,
+  SUITE_KINDS,
+  APP_CONTRACT_KINDS,
+  APP_ENGINE_ERROR_CODES,
+  enumName,
+  enumKeyOf,
+  isEnumValue,
+} from './features/app-engine/app-store/app-store.enums';
+export { STORE_VIEWS, buildStorePaths } from './features/app-engine/app-store/app-store.routes';
 
 // Context + Hooks
 export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/context/AppEngineSDK.context';
@@ -49,7 +67,7 @@ export { default as VeripassLogo } from './components/app-engine/runtime/identit
 export { clearAppDataCache, VERIPASS_LOGOUT_EVENT } from './features/app-engine/runtime/data/data-cache';
 export { default as AppDataClient } from './features/app-engine/runtime/data/data-client';
 export { applyPatchOperations, validatePatchOperations, PATCH_OPERATIONS } from './features/app-engine/runtime/data/data-patch';
-export { createLoomIdentityHeaders } from './features/app-engine/runtime/shared/loom-identity.client';
+export { createLoomIdentityHeaders, createSessionIdentityHeaders } from './features/app-engine/runtime/shared/loom-identity.client';
 export {
   RUNTIME_MODULE_LOADERS,
   STATIC_RUNTIME_MODULES,
@@ -81,8 +99,12 @@ export { default as AppEngineAppBuildService } from './services/app-engine/app-b
 export { default as AppEngineAppSessionService } from './services/app-engine/app-session/app-session.service';
 export { default as AppEngineAppPreferenceService } from './services/app-engine/app-preference/app-preference.service';
 export { default as AppEngineAppScaffoldService } from './services/app-engine/app-scaffold/app-scaffold.service';
+export { default as AppEngineStoreService } from './services/app-engine/app-store/app-store.service';
+export { default as AppEngineAppSuiteService } from './services/app-engine/app-suite/app-suite.service';
+export { default as AppEngineAppEntitlementService } from './services/app-engine/app-entitlement/app-entitlement.service';
 
 // Adapters
+export { default as fetchAllPages } from './services/utils/fetchAllPages';
 export {
   fetchEntityCollection,
   fetchMultipleEntities,

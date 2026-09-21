@@ -11,6 +11,7 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import { ChevronLeft as ChevronLeftIcon } from '@mui/icons-material';
 import { STUDIO_UI_DEFAULTS } from '../../defaults/appEngine.defaults';
+import { enumName } from '../../../../features/app-engine/app-store/app-store.enums';
 
 function parseRoutesFromFileTree(fileTree, openFiles) {
   const isAppJsx = (path) => path === '/src/app.jsx' || path === 'src/app.jsx' || (path || '').endsWith('/app.jsx') || (path || '').endsWith('app.jsx');
@@ -155,7 +156,7 @@ const PropertiesPanel = ({
             </div>
             <div style={{ marginBottom: '16px' }}>
               <Typography sx={fieldLabelSx}>{ui.fieldCategory || STUDIO_UI_DEFAULTS.fieldCategory}</Typography>
-              <TextField fullWidth size="small" value={appDefinition?.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} sx={inputSx} />
+              <TextField fullWidth size="small" value={enumName(appDefinition?.category) || ''} onChange={(e) => handleFieldChange('category', e.target.value)} sx={inputSx} />
             </div>
             <div style={{ marginBottom: '16px' }}>
               <Typography sx={fieldLabelSx}>{ui.fieldIcon || STUDIO_UI_DEFAULTS.fieldIcon}</Typography>

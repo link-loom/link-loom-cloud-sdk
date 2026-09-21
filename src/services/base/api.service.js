@@ -60,15 +60,23 @@ export default class BaseApi {
       let key = {};
 
       for (key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          const k = prefix ? prefix + "[" + key + "]" : key;
-          const value = obj[key] || null;
-          serializedArr.push(
-            value !== null && typeof value === "object"
-              ? this.serializerOjectToQueryString(value, k)
-              : encodeURIComponent(k) + "=" + encodeURIComponent(value),
-          );
+        if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+          continue;
         }
+
+        const value = obj[key];
+
+        // Only an absent value is left out: `false` and `0` are real filters and travel as such.
+        if (value === null || value === undefined) {
+          continue;
+        }
+
+        const k = prefix ? prefix + "[" + key + "]" : key;
+        serializedArr.push(
+          typeof value === "object"
+            ? this.serializerOjectToQueryString(value, k)
+            : encodeURIComponent(k) + "=" + encodeURIComponent(value),
+        );
       }
       return serializedArr.join("&");
     }
@@ -118,7 +126,8 @@ export default class BaseApi {
       return result.data;
     } catch (error) {
       console.error(error);
-      return error?.body;
+      // The backend's envelope (`success: false`, `message`, `error_code`); undefined when it was not reached.
+      return error?.response?.data;
     }
   }
 
@@ -166,7 +175,8 @@ export default class BaseApi {
       return result.data;
     } catch (error) {
       console.error(error);
-      return error?.body;
+      // The backend's envelope (`success: false`, `message`, `error_code`); undefined when it was not reached.
+      return error?.response?.data;
     }
   }
 
@@ -191,7 +201,8 @@ export default class BaseApi {
       return result.data;
     } catch (error) {
       console.error(error);
-      return error?.body;
+      // The backend's envelope (`success: false`, `message`, `error_code`); undefined when it was not reached.
+      return error?.response?.data;
     }
   }
 
@@ -291,7 +302,8 @@ export default class BaseApi {
       return result.data;
     } catch (error) {
       console.error(error);
-      return error?.body;
+      // The backend's envelope (`success: false`, `message`, `error_code`); undefined when it was not reached.
+      return error?.response?.data;
     }
   }
 }

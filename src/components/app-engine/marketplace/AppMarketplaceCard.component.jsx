@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { MARKETPLACE_UI_DEFAULTS, mergeDefaults } from '../defaults/appEngine.defaults';
 import AppIcon from '../AppIcon.component';
+import { enumName } from '@/features/app-engine/app-store/app-store.enums';
 
 const CardArticle = styled('article')(({ $hoverBorderColor, $hoverShadow }) => ({
   cursor: 'pointer',
@@ -158,7 +159,7 @@ const AppMarketplaceCard = ({
 
       {app?.category && (
         <div>
-          <Chip label={app.category} size="small" />
+          <Chip label={app.category?.title || enumName(app.category)} size="small" />
         </div>
       )}
 

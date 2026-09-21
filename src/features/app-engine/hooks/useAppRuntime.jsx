@@ -1,7 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-export default function useAppRuntime({ appSessionService }) {
+import { createSessionIdentityHeaders } from '../runtime/shared/loom-identity.client';
+
+// `getIdentitySession` returns the host's Veripass session (`useAuth().getToken`): opening a session
+// follows the App Engine access rule, so it is opened as that person and their organization.
+export default function useAppRuntime({ appSessionService, getIdentitySession }) {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
@@ -29,12 +33,15 @@ export default function useAppRuntime({ appSessionService }) {
     setError(null);
 
     try {
-      const response = await appSessionService.open({
-        app_slug: appSlug,
-        route_path: routePath || '/',
-        launch_mode: launchMode || 'fullscreen',
-        input_payload: inputPayload || {},
-      });
+      const response = await appSessionService.open(
+        {
+          app_slug: appSlug,
+          route_path: routePath || '/',
+          launch_mode: launchMode || 'fullscreen',
+          input_payload: inputPayload || {},
+        },
+        { headers: createSessionIdentityHeaders(getIdentitySession?.()) },
+      );
 
       if (!response?.result) {
         throw new Error(response?.message || 'Failed to open session');
@@ -92,7 +99,7 @@ export default function useAppRuntime({ appSessionService }) {
       setStatus('error');
       return null;
     }
-  }, [appSessionService, cleanup]);
+  }, [appSessionService, getIdentitySession, cleanup]);
 
   const mountApp = useCallback((containerRef, AppComponent, sdk) => {
     if (!containerRef?.current || !AppComponent) return;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@veripass/react-sdk";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -33,6 +34,10 @@ const AppStudio = ({
   className = "",
 }) => {
   const config = mergeDefaults(STUDIO_UI_DEFAULTS, ui);
+  const auth = useAuth();
+  const getTokenRef = useRef(auth?.getToken);
+  getTokenRef.current = auth?.getToken;
+  const getIdentitySession = useCallback(() => getTokenRef.current?.() || null, []);
   const darkTheme = config.theme || STUDIO_UI_DEFAULTS.theme;
   const lightTheme = config.lightTheme || STUDIO_UI_DEFAULTS.lightTheme;
 
@@ -510,6 +515,8 @@ const AppStudio = ({
               launchMode="fullscreen"
               inputPayload={{}}
               appSessionService={appSessionService}
+              // Opening a session follows the access rule, so the preview opens as the signed-in person.
+              getIdentitySession={getIdentitySession}
               apiBaseUrl={appDefinitionService?.serviceEndpoints?.baseUrl || ""}
               onClose={() => setIsPreviewOpen(false)}
               onSubmitOutput={() => setIsPreviewOpen(false)}

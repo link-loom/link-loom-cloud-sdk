@@ -12,6 +12,8 @@ import {
   ensureRuntimeModules,
 } from "./runtime-modules/runtime-modules.registry";
 import IdentityVerification from "./identity/IdentityVerification.component";
+import AppNotEntitledComponent from "./not-entitled/AppNotEntitled.component";
+import { APP_ENGINE_ERROR_CODES } from "../../../features/app-engine/app-store/app-store.enums";
 import RuntimeHttpClient from "../../../features/app-engine/runtime/shared/runtime-http.client";
 import { createLoomClient } from "../../../features/app-engine/runtime/shared/loom-identity.client";
 import { createUuid } from "../../../features/app-engine/runtime/shared/runtime-ids";
@@ -438,6 +440,12 @@ const AppRuntimeHost = ({
       const openPayload =
         response?.result ||
         (response ? null : await resolveOfflinePayload(identitySession));
+
+      // The organization can see this app but does not have it: that is a way to the store, not an error.
+      if (!openPayload && response?.error_code === APP_ENGINE_ERROR_CODES.appNotEntitled) {
+        setStatus("not-entitled");
+        return;
+      }
 
       if (!openPayload) {
         throw new Error(response?.message || "Failed to open session");
@@ -1016,6 +1024,7 @@ const AppRuntimeHost = ({
         (renderLoading ? renderLoading() : defaultLoadingContent)}
       {status === "error" &&
         (renderError ? renderError({ error }) : defaultErrorContent)}
+      {status === "not-entitled" && <AppNotEntitledComponent appSlug={appSlug} minHeight={`${theme.minHeight}px`} />}
       <div
         ref={mountRef}
         style={{

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@veripass/react-sdk";
 import { openSnackbar } from "@link-loom/react-sdk";
 
+import fetchAllPages from "../../../services/utils/fetchAllPages";
 import { useAppEngineSDK } from "../context/AppEngineSDK.context";
 import { useLaunchpadConfig } from "./LaunchpadConfig.context";
 
@@ -145,8 +146,8 @@ export default function useLaunchpadApps() {
 
     try {
       const [definitions, preferences] = await Promise.all([
-        appDefinitionService.getMarketplace({ organization_id: organizationId, pageSize: 200 }),
-        userIdentity && appPreferenceService ? appPreferenceService.getByParameters({ queryselector: "user", search: userIdentity }) : Promise.resolve(null),
+        fetchAllPages((params) => appDefinitionService.getMarketplace(params), { organization_id: organizationId }),
+        userIdentity && appPreferenceService ? fetchAllPages(appPreferenceService, { queryselector: "user", search: userIdentity }) : Promise.resolve(null),
       ]);
 
       const prefById = {};
@@ -154,7 +155,12 @@ export default function useLaunchpadApps() {
         if (pref?.app_definition_id) prefById[pref.app_definition_id] = pref;
       });
 
-      const items = (definitions?.result?.items || []).map((app) => ({
+      // A partial catalog would quietly drop apps from the grid and the rail; fail loudly instead.
+      if (!definitions?.success) {
+        throw new Error(definitions?.message || "The app catalog did not load");
+      }
+
+      const items = definitions.result.items.map((app) => ({
         ...app,
         kind: "app",
         is_pinned: Boolean(prefById[app.id]?.is_pinned),
@@ -248,7 +254,7 @@ export default function useLaunchpadApps() {
 
       return queuePinWrite(entry.id, async () => {
         try {
-          const existing = await appPreferenceService.getByParameters({ queryselector: "user", search: userIdentity });
+          const existing = await fetchAllPages(appPreferenceService, { queryselector: "user", search: userIdentity });
           const record = (existing?.result?.items || []).find((pref) => pref.app_definition_id === entry.id);
 
           if (record) await appPreferenceService.update({ id: record.id, is_pinned: next });
