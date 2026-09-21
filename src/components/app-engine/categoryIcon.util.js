@@ -21,6 +21,7 @@ const CATEGORY_ICON_MAP = {
   forms: DynamicFormIcon,
   form: DynamicFormIcon,
   data: StorageIcon,
+  productivity: AppsOutlined,
 };
 
 const CATEGORY_TINT_MAP = {
@@ -33,6 +34,7 @@ const CATEGORY_TINT_MAP = {
   forms:       { bg: "#FEF3C7", iconColor: "#D97706" },
   form:        { bg: "#FEF3C7", iconColor: "#D97706" },
   data:        { bg: "#E0F2FE", iconColor: "#0284C7" },
+  productivity: { bg: "#E0E7FF", iconColor: "#4F46E5" },
 };
 
 const DEFAULT_TINT = { bg: "#F3F4F6", iconColor: "#6B7280" };

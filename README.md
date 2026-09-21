@@ -66,6 +66,12 @@ app bundle would load a duplicate ProseMirror instance.
   `organization_id` and `app_session_id` as query params, and `sdk.signals.subscribe(channel)` returns its
   unsubscribe function.
 
+## Launchpad and App Store
+
+`LaunchpadRailComponent` (sidebar rail), `AppLaunchpadComponent` ("My apps") and `AppStoreComponent`, configured
+once per host with `LaunchpadProvider`. Integrating them into a host means shell changes as well; follow
+[docs/11-launchpad-host-integration.md](docs/11-launchpad-host-integration.md).
+
 ## StorageBrowser
 
 Finder-style file manager shared by the operator console and user-facing hosts.

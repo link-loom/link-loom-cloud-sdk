@@ -1,8 +1,28 @@
 // React Components
 export { default as AppRuntimeHostComponent } from './components/app-engine/runtime/AppRuntimeHost.component';
 export { default as AppStudioComponent } from './components/app-engine/studio/AppStudio.component';
+// Deprecated: the first marketplace grid and card, kept for the Link Loom Cloud consoles that still
+// render them. New hosts use `AppStoreComponent`.
 export { default as AppMarketplaceGridComponent } from './components/app-engine/marketplace/AppMarketplaceGrid.component';
 export { default as AppMarketplaceCardComponent } from './components/app-engine/marketplace/AppMarketplaceCard.component';
+
+// StoneOS launchpad (sidebar rail + "My apps") and App Store — see docs/11-launchpad-host-integration.md
+export { default as LaunchpadRailComponent } from './components/app-engine/launchpad/LaunchpadRail.component';
+export { default as AppLaunchpadComponent } from './components/app-engine/launchpad/AppLaunchpad.component';
+export { default as AppStoreComponent } from './components/app-engine/app-store/AppStore.component';
+export { default as StoneOSTabsComponent } from './components/app-engine/launchpad/StoneOSTabs.component';
+export { default as StoneOSMark } from './components/app-engine/launchpad/StoneOSMark.component';
+export { default as CatalogAppIconComponent, hasSvgAppIcon } from './components/app-engine/CatalogAppIcon.component';
+export { LaunchpadProvider, useLaunchpadConfig } from './features/app-engine/launchpad/LaunchpadConfig.context';
+export { default as useLaunchpadApps, toPlatformEntry } from './features/app-engine/launchpad/useLaunchpadApps.hook';
+export { default as useLaunchpadLayout } from './features/app-engine/launchpad/useLaunchpadLayout.hook';
+export {
+  LAUNCHPAD_LABELS,
+  APP_STORE_LABELS,
+  LAUNCHPAD_PATHS,
+  LAUNCHPAD_STORAGE_NAMESPACE,
+} from './components/app-engine/defaults/launchpad.defaults';
+export { LAUNCHPAD_THEME, LAUNCHPAD_RAIL_THEME } from './components/app-engine/defaults/launchpad.theme';
 
 // Context + Hooks
 export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/context/AppEngineSDK.context';

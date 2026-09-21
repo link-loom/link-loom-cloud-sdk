@@ -58,12 +58,17 @@ App Engine serves three audiences:
 │   ├── AppCatalogGridComponent   — Browse and manage apps
 │   ├── AppCatalogCardComponent   — Individual app card
 │   ├── AppStudioComponent        — Full IDE for editing apps
-│   └── AppRuntimeHostComponent   — Execute compiled apps
+│   ├── AppRuntimeHostComponent   — Execute compiled apps
+│   ├── LaunchpadRailComponent    — Sidebar rail: platforms, pinned apps, all apps
+│   ├── AppLaunchpadComponent     — "My apps": search, recents, pinned, folders
+│   └── AppStoreComponent         — App Store (see 11-launchpad-host-integration.md)
 ├── Context + Hooks
 │   ├── AppEngineSDKProvider      — Service provider context
 │   ├── useAppEngineSDK()         — Access services
 │   ├── useAppStudio()            — Studio state management
-│   └── useAppRuntime()           — Runtime lifecycle hook
+│   ├── useAppRuntime()           — Runtime lifecycle hook
+│   ├── LaunchpadProvider         — Host copy, platforms, routes and storage prefix of the launchpad
+│   └── useLaunchpadApps()        — Catalog + pins + recents the launchpad reads
 ├── Services (7 API clients)
 │   ├── AppDefinition, AppVersion, AppFile, AppBuild
 │   ├── AppSession, AppPreference, AppScaffold
