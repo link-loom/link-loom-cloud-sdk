@@ -24,7 +24,8 @@ const canConvert = sdk.context.host?.capabilities?.includes("work-items");
 - `name`: display name of the host.
 - `capabilities`: string ids of the host APIs an app may call through `sdk.api` (base URL = the host backend).
   `work-items` = Mi Retail work items (`POST /workspace/operations/ingest`, app contributions, workspace tree and
-  projects).
+  projects). Every ingest names the person the app acts for — `actor: { identity: sdk.identity.veripassIdentity,
+  name: sdk.identity.displayName }` — and is refused with 400 without it: an app never writes work anonymously.
 - `locale`: the host's current UI language (`en`, `es`, …). Apps whose language setting is `platform` follow it.
 - `timeZone`: the host's IANA time zone (`America/Bogota`, …). Omitted when the host has no time zone setting;
   apps then fall back to the browser zone.
