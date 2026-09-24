@@ -69,6 +69,12 @@ export { default as AppDataClient } from './features/app-engine/runtime/data/dat
 export { applyPatchOperations, validatePatchOperations, PATCH_OPERATIONS } from './features/app-engine/runtime/data/data-patch';
 export { createLoomIdentityHeaders, createSessionIdentityHeaders } from './features/app-engine/runtime/shared/loom-identity.client';
 export {
+  APP_BACKEND_API_VERSION,
+  buildAppBackendPrefix,
+  createAppBackend,
+  createAppBackendClient,
+} from './features/app-engine/runtime/backend/app-backend.client';
+export {
   RUNTIME_MODULE_LOADERS,
   STATIC_RUNTIME_MODULES,
   ensureRuntimeModules,

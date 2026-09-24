@@ -27,6 +27,7 @@
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && rollup -c rollup.config.cjs",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "test": "node --import ./test/support/register.mjs --test test/*.test.js",
     "version-patch": "npm version patch",
     "version-deploy": "npm publish"
   },

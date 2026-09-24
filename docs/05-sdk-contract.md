@@ -87,6 +87,47 @@ await sdk.api.patch('/work-management/task', {
 await sdk.api.delete(`/work-management/task/${taskId}`);
 ```
 
+## `sdk.loom`
+
+Authenticated client to the Link Loom Cloud backend (`sdk.context.loomCloudBaseUrl`). Every request carries the identity headers of the app session: `Authorization: Bearer <Veripass JWT>`, `x-veripass-organization-identity` and `x-loom-app-session` (read per request, so an offline session reopened online sends its new id). Methods resolve the envelope `result` and reject with `RuntimeHttpError` (`status`, `message`, `body`, `network`).
+
+| Member | Description |
+|--------|-------------|
+| `get(path, params?, { signal }?)` | GET; `params` become the query string |
+| `post(path, body?, { signal }?)` | POST with a JSON body |
+| `patch(path, body?, { signal }?)` | PATCH with a JSON body |
+| `delete(path, body?, { signal }?)` | DELETE with an optional JSON body |
+| `headers()` | The identity headers of the next request |
+| `baseUrl` | The Link Loom Cloud backend URL |
+
+## `sdk.backend`
+
+The app's own namespace in the Link Loom Cloud backend: the same client as `sdk.loom`, with every path prefixed by `/apps/<app-slug>/v1`. The host injects it **only** when the app definition declares its namespace in `definition.js`:
+
+```javascript
+// definition.js
+backend: { namespace: 'stoneos-accounting' },
+```
+
+```javascript
+const entries = await sdk.backend.get('/journal-entry/by-period', { period });
+// GET {loomCloudBaseUrl}/apps/stoneos-accounting/v1/journal-entry/by-period?period=...
+```
+
+| Member | Description |
+|--------|-------------|
+| `get`, `post`, `patch`, `delete` | As in `sdk.loom`, with paths relative to the namespace |
+| `headers()` | The identity headers `app-session` routes expect |
+| `namespace` | The namespace (the app slug) |
+| `prefix` | `/apps/<app-slug>/v1` |
+| `baseUrl` | `{loomCloudBaseUrl}/apps/<app-slug>/v1` |
+
+- The namespace must be the app's own slug: the `app-session` handler refuses a session of another app, so a definition naming another namespace gets no `sdk.backend`.
+- Paths stay inside the namespace: a path with a `.` or `..` segment (also percent-encoded) or a backslash rejects with `TypeError` before any request.
+- The query of `get` is flat: each key becomes one URL parameter, and arrays are joined with commas. A key holding an object, such as the axios form `{ params: { period } }`, rejects with `TypeError` before any request, because it would reach the backend as `[object Object]`.
+- The object is frozen. Apps without backend do not receive it; code that must also run on hosts without `sdk.backend` falls back to `sdk.loom` with the full `/apps/<app-slug>/v1` prefix.
+- Hosts that build their own `sdk` use `createAppBackend({ loom, appDefinition, appSlug })`, which answers the client or `null`.
+
 ## `sdk.navigate(path)`
 
 Navigate to a different route within the app.

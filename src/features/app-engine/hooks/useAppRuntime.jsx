@@ -1,7 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { createSessionIdentityHeaders } from '../runtime/shared/loom-identity.client';
+import { createAppBackend } from '../runtime/backend/app-backend.client';
+import { buildIdentityHeaders, readIdentitySession } from '../runtime/identity/identity-session';
+import RuntimeHttpClient from '../runtime/shared/runtime-http.client';
+import { createLoomClient, createSessionIdentityHeaders } from '../runtime/shared/loom-identity.client';
 
 // `getIdentitySession` returns the host's Veripass session (`useAuth().getToken`): opening a session
 // follows the App Engine access rule, so it is opened as that person and their organization.
@@ -70,6 +73,18 @@ export default function useAppRuntime({ appSessionService, getIdentitySession })
         throw new Error('App module does not export a default component');
       }
 
+      const identitySession = readIdentitySession(getIdentitySession?.());
+      const appBackend = createAppBackend({
+        loom: createLoomClient(
+          new RuntimeHttpClient({
+            baseUrl: appSessionService.serviceEndpoints?.baseUrl || '',
+            getHeaders: () => buildIdentityHeaders(identitySession, sessionData.id),
+          }),
+        ),
+        appDefinition: response.result.app_definition,
+        appSlug: sessionData.app_slug || appSlug,
+      });
+
       const sdk = {
         session: {
           id: sessionData.id,
@@ -80,6 +95,7 @@ export default function useAppRuntime({ appSessionService, getIdentitySession })
           routePath: sessionData.route_path,
         },
         input: sessionData.input_payload || inputPayload || {},
+        ...(appBackend ? { backend: appBackend } : {}),
         navigate: (path) => onNavigate?.(path),
         saveDraft: (payload) => appSessionService?.saveDraft({ id: sessionData.id, draft_payload: payload }),
         submitOutput: async (payload) => {

@@ -16,6 +16,7 @@ import AppNotEntitledComponent from "./not-entitled/AppNotEntitled.component";
 import { APP_ENGINE_ERROR_CODES } from "../../../features/app-engine/app-store/app-store.enums";
 import RuntimeHttpClient from "../../../features/app-engine/runtime/shared/runtime-http.client";
 import { createLoomClient } from "../../../features/app-engine/runtime/shared/loom-identity.client";
+import { createAppBackend } from "../../../features/app-engine/runtime/backend/app-backend.client";
 import { createUuid } from "../../../features/app-engine/runtime/shared/runtime-ids";
 import {
   buildIdentityHeaders,
@@ -558,6 +559,13 @@ const AppRuntimeHost = ({
         baseUrl: loomBaseUrl,
         getHeaders: identityHeaders,
       });
+      const loomClient = createLoomClient(loomHttp);
+      // Only an app whose definition declares its namespace (`backend: { namespace }`) gets `sdk.backend`.
+      const appBackend = createAppBackend({
+        loom: loomClient,
+        appDefinition: fullPayload.app_definition,
+        appSlug: resolvedAppSlug,
+      });
 
       // Signals (realtime, one-way) — one SSE connection per app session, lazily created.
       const buildSubjectChannel = () => {
@@ -685,7 +693,8 @@ const AppRuntimeHost = ({
         data: dataClient.toSdk(),
         files: filesClient.toSdk(),
         directory: directoryClient.toSdk(),
-        loom: createLoomClient(loomHttp),
+        loom: loomClient,
+        ...(appBackend ? { backend: appBackend } : {}),
         notify: (notification = {}) => {
           window.dispatchEvent(
             new CustomEvent(APP_NOTIFICATION_EVENT, {
