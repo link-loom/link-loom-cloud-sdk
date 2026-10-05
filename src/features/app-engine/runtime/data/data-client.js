@@ -1,8 +1,9 @@
 import AppDataLocalStore, { buildAppDataNamespace } from "./data-local.store";
-import AppDataOutbox from "./data-outbox";
-import { isRetryableHttpError } from "../shared/runtime-http.client";
+import AppDataOutbox, { DATA_BATCH_PATH } from "./data-outbox";
+import { RuntimeHttpError, isRetryableHttpError } from "../shared/runtime-http.client";
 import { LOCAL_ID_PREFIX, createUuid, hashValue, isLocalId } from "../shared/runtime-ids";
 import { applyPatchOperations, validatePatchOperations } from "./data-patch";
+import { matchesWhere, serializeWhere } from "./data-query";
 
 const DATA_PATH = "/app-engine/data";
 const REPLAY_INTERVAL_MS = 30 * 1000;
@@ -12,6 +13,8 @@ const DEFAULT_SCOPE = "user-appdata";
 const PERSONAL_SCOPE = "user";
 const SIGNAL_DEDUPE_LIMIT = 50;
 const FAILURE_HISTORY_LIMIT = 20;
+// Recorded for a queued write that was dropped because the record it needed was refused.
+const DEPENDENCY_REFUSED_ERROR_CODE = "APP_DATA_DEPENDENCY_REFUSED";
 const CHANGES_MAX_PAGES = 20;
 // Changes written while the feed was being read carry timestamps just before `server_time`.
 const CHANGES_OVERLAP_MS = 5 * 1000;
@@ -43,13 +46,23 @@ const toRecordFields = (input = {}) => {
   return fields;
 };
 
+// Operations of an atomic batch take the arguments of the method of the same name, and `$<index>` names the
+// record an earlier operation of the batch wrote.
+const MAX_ATOMIC_BATCH_OPERATIONS = 50;
+const BATCH_REFERENCE_PATTERN = /^\$\d+$/;
+const BATCH_REFERENCE_FIELDS = ["id", "parent_id", "ref_id", "acl_source_id"];
+
+// Rejected writes whose optimistic copy of the record is discarded.
+const REVERTED_OPERATIONS = ["update", "patch", "setKey"];
+
 const keyRecordId = (collection, scope, key, owner) => `key:${collection}:${scope}:${key}${owner ? `:${owner}` : ""}`;
 
 const matchesCollectionQuery = (record, query) =>
   record.collection === query.collection &&
   (!query.scope || record.scope === query.scope) &&
   (!query.parent_id || record.parent_id === query.parent_id) &&
-  (!query.ref_id || record.ref_id === query.ref_id);
+  (!query.ref_id || record.ref_id === query.ref_id) &&
+  matchesWhere(record, query.where);
 
 const extractItems = (result) => result?.items || [];
 
@@ -140,12 +153,19 @@ export default class AppDataClient {
       lastSyncAt: syncTimestamps.length ? Math.max(...syncTimestamps) : null,
       conflicts: meta.conflicts,
       conflictIds: meta.conflictIds,
+      failures: meta.failures,
     };
   }
 
   // Clears the conflict counter once the app has shown the conflicts to the user.
   acknowledgeConflicts() {
     this._store.updateMeta({ conflicts: 0, conflictIds: [] });
+    this.#emitStatus();
+  }
+
+  // Clears the refused writes once the app has shown them to the user.
+  acknowledgeFailures() {
+    this._store.updateMeta({ failures: [] });
     this.#emitStatus();
   }
 
@@ -334,24 +354,76 @@ export default class AppDataClient {
     });
   }
 
+  // The server refused the write (validation, access, a unique index) and the entry is gone from the outbox.
+  // The optimistic copy carries what was refused, so it goes and the next read refetches the stored record.
+  // The refusal is kept in `status().failures` with the server's `error_code` (and, for APP_DATA_DUPLICATE,
+  // the `collection` and the `fields` of the index) so the app can tell the user what happened.
   async #handleRejected(entry, outcome) {
+    const targetId = this.#resolveId(entry.target_id);
+    const dropped = entry.op === "create" ? this.#discardDependents(entry) : [];
+
     if (entry.op === "create") {
       this._store.removeRecord(entry.local_id);
     }
 
-    // The optimistic copy carries operations the server refused; the next read refetches it.
-    if (entry.op === "patch" && !this._outbox.hasPending(this.#resolveId(entry.target_id))) {
-      this._store.removeRecord(this.#resolveId(entry.target_id));
+    if (REVERTED_OPERATIONS.includes(entry.op) && !this._outbox.hasPending(targetId)) {
+      this._store.removeRecord(targetId);
     }
 
     // 404 covers purged records and records the principal can no longer reach.
     if (outcome.status === 404) {
-      this._store.removeRecord(this.#resolveId(entry.target_id));
+      this._store.removeRecord(targetId);
     }
 
+    const at = this._now();
+    const failures = [
+      this.#toFailure(entry, outcome, at),
+      ...dropped.map((dependent) => ({
+        op: dependent.op,
+        target_id: dependent.target_id,
+        status: outcome.status,
+        message: outcome.message,
+        at,
+        error_code: DEPENDENCY_REFUSED_ERROR_CODE,
+        depends_on: entry.local_id,
+      })),
+    ];
     const meta = this._store.getMeta();
-    const failure = { op: entry.op, target_id: entry.target_id, status: outcome.status, message: outcome.message, at: this._now() };
-    this._store.updateMeta({ failures: [...meta.failures, failure].slice(-FAILURE_HISTORY_LIMIT) });
+    this._store.updateMeta({ failures: [...meta.failures, ...failures].slice(-FAILURE_HISTORY_LIMIT) });
+  }
+
+  #toFailure(entry, outcome, at) {
+    const refusal = outcome.record;
+    const collection = refusal?.collection || entry.payload?.collection;
+    return {
+      op: entry.op,
+      target_id: entry.target_id,
+      status: outcome.status,
+      message: outcome.message,
+      at,
+      ...(refusal?.error_code ? { error_code: refusal.error_code } : {}),
+      ...(collection ? { collection } : {}),
+      ...(Array.isArray(refusal?.fields) ? { fields: refusal.fields } : {}),
+    };
+  }
+
+  // Writes queued behind a refused create (its updates, its children, theirs in turn) can never be sent: they
+  // name a local id the server will not map. Dropping them keeps them from blocking the queue for good.
+  #discardDependents(entry) {
+    const refusedLocalIds = [entry.local_id];
+    const dropped = [];
+
+    while (refusedLocalIds.length) {
+      for (const dependent of this._outbox.removeDependentsOf(refusedLocalIds.pop())) {
+        dropped.push(dependent);
+        if (dependent.op === "create" && dependent.local_id) {
+          this._store.removeRecord(dependent.local_id);
+          refusedLocalIds.push(dependent.local_id);
+        }
+      }
+    }
+
+    return dropped;
   }
 
   // ── Helpers ────────────────────────────────────────────────────────
@@ -443,7 +515,9 @@ export default class AppDataClient {
 
   // ── Reads ──────────────────────────────────────────────────────────
 
-  list(collection, { scope, parentId, refId, tags, page, pageSize, sort, createdAfter, createdBefore, countOnly } = {}) {
+  // `where` filters by the `data` fields the app declares in `manifest.data`; `sort` also takes `data.<field>`
+  // (comma separated, `-` for descending).
+  list(collection, { scope, parentId, refId, tags, page, pageSize, sort, createdAfter, createdBefore, countOnly, where } = {}) {
     // A route opened while a record was local keeps its local id; once synced the server knows only the mapped id.
     const query = {
       collection,
@@ -453,6 +527,7 @@ export default class AppDataClient {
       tags,
       created_after: createdAfter,
       created_before: createdBefore,
+      where: serializeWhere(where),
     };
 
     if (countOnly) {
@@ -518,13 +593,27 @@ export default class AppDataClient {
     return this._store.getRecord(resolvedId);
   }
 
-  async range(collection, { startsAt, endsAt } = {}) {
-    const { items, fromCache } = await this.#readSelector("range", { collection, starts_at: startsAt, ends_at: endsAt });
+  async range(collection, { startsAt, endsAt, where } = {}) {
+    const { items, fromCache } = await this.#readSelector("range", {
+      collection,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      where: serializeWhere(where),
+    });
     return { items, fromCache };
   }
 
-  async search(collection, text) {
-    const { items, fromCache } = await this.#readSelector("search", { collection, search: text });
+  // Whole words of the title and the search text, every word required, most relevant first.
+  async search(collection, text, { where, scope, sort, page, pageSize } = {}) {
+    const { items, fromCache } = await this.#readSelector("search", {
+      collection,
+      search: text,
+      scope,
+      where: serializeWhere(where),
+      sort,
+      page,
+      pageSize,
+    });
     return { items, fromCache };
   }
 
@@ -707,6 +796,147 @@ export default class AppDataClient {
     return Promise.resolve();
   }
 
+  // ── Atomic batch ───────────────────────────────────────────────────
+
+  // Every operation applies or none does (one transaction in the backend). Not queued: it needs a connection
+  // and answers after the commit, so a failure never leaves part of the work behind. Each operation takes the
+  // arguments of the method of the same name:
+  //   { op: "create", collection, input }, { op: "update", id, patch, expectedRevision },
+  //   { op: "patch", id, operations }, { op: "setKey", collection, key, data, scope, acl },
+  //   { op: "remove" | "restore" | "purge", id }, { op: "share", id, acl }
+  // `$<index>` in `id`, `parentId`, `refId` or `aclSourceId` names the record an earlier operation wrote, and
+  // `clientMutationId` makes a retry after an unknown outcome apply nothing twice. A failed batch rejects with
+  // the status of the failing operation and `error.body.result` = { error_code: "APP_DATA_BATCH_ABORTED",
+  // failed_index, results }; a unique index broken by the batch answers APP_DATA_DUPLICATE (409).
+  async batch(operations) {
+    if (!Array.isArray(operations) || !operations.length) {
+      throw new Error("operations are required");
+    }
+    if (operations.length > MAX_ATOMIC_BATCH_OPERATIONS) {
+      throw new Error(`A batch accepts at most ${MAX_ATOMIC_BATCH_OPERATIONS} operations`);
+    }
+    const wireOperations = operations.map((operation, index) => this.#toBatchOperation(operation, index));
+
+    if (!this._isOnline()) {
+      throw new RuntimeHttpError({ network: true, message: "An atomic batch needs a connection" });
+    }
+
+    const result = await this._http.request({
+      method: "POST",
+      path: DATA_BATCH_PATH,
+      body: { atomic: true, operations: wireOperations },
+    });
+    const results = result?.results || [];
+
+    this.#applyBatchResults(wireOperations, results);
+    this.#emitStatus();
+    return { atomic: true, results };
+  }
+
+  #batchId(id, field) {
+    if (BATCH_REFERENCE_PATTERN.test(id)) {
+      return id;
+    }
+    const resolved = this.#resolveId(id);
+    if (isLocalId(resolved)) {
+      throw new Error(`${field} ${id} was created on this device and has not synced yet; call flush() first`);
+    }
+    return resolved;
+  }
+
+  #batchPayload(fields) {
+    const payload = { ...fields };
+    for (const field of BATCH_REFERENCE_FIELDS) {
+      if (payload[field]) {
+        payload[field] = this.#batchId(payload[field], field);
+      }
+    }
+    return payload;
+  }
+
+  #toBatchOperation(operation, index) {
+    const { op, clientMutationId = createUuid() } = operation || {};
+    const withId = (wire, fields) => ({
+      op: wire,
+      payload: { ...this.#batchPayload(fields), client_mutation_id: clientMutationId },
+    });
+
+    switch (op) {
+      case "create":
+        if (!operation.collection) {
+          throw new Error(`operations[${index}]: collection is required`);
+        }
+        return withId("create", { collection: operation.collection, scope: DEFAULT_SCOPE, ...toRecordFields(operation.input) });
+      case "update":
+        return withId("update", {
+          id: operation.id,
+          ...toRecordFields(operation.patch),
+          ...(operation.expectedRevision != null ? { expected_revision: operation.expectedRevision } : {}),
+        });
+      case "patch":
+        validatePatchOperations(operation.operations);
+        return withId("patch", { id: operation.id, operations: operation.operations });
+      case "setKey":
+        if (!operation.collection || !operation.key) {
+          throw new Error(`operations[${index}]: collection and key are required`);
+        }
+        return withId("set-key", {
+          collection: operation.collection,
+          key: operation.key,
+          scope: operation.scope || DEFAULT_SCOPE,
+          data: operation.data,
+          ...(operation.acl ? { acl: operation.acl } : {}),
+        });
+      case "remove":
+        return withId("delete", { id: operation.id });
+      case "restore":
+      case "purge":
+        return withId(op, { id: operation.id });
+      case "share":
+        return withId("share", { id: operation.id, acl: operation.acl });
+      default:
+        throw new Error(`operations[${index}]: unknown operation ${op}`);
+    }
+  }
+
+  // The committed records replace what the cache held; the cached lists of the touched collections are dropped.
+  #applyBatchResults(wireOperations, results) {
+    const pendingIds = this._outbox.targetIds();
+    const collections = new Set();
+
+    results.forEach((outcome, position) => {
+      const record = outcome?.result;
+      const wire = wireOperations[position];
+      if (!outcome?.success || !record?.id) {
+        return;
+      }
+      record.collection && collections.add(record.collection);
+      this.#trackCollection(record.collection);
+
+      if (wire.op === "delete" || wire.op === "purge") {
+        this._store.removeRecord(record.id);
+        return;
+      }
+      if (wire.op === "set-key") {
+        this._store.putRecord(
+          {
+            id: keyRecordId(record.collection, record.scope, record.key),
+            remote_id: record.id,
+            collection: record.collection,
+            key: record.key,
+            scope: record.scope,
+            data: record.data,
+          },
+          { synced: true },
+        );
+        return;
+      }
+      this.#cacheRemote(record, pendingIds);
+    });
+
+    this._store.removeListsForCollections([...collections]);
+  }
+
   // ── Realtime ───────────────────────────────────────────────────────
 
   // `{ collection }` observes every record of the collection in the organization; `{ collection, refId }`
@@ -765,13 +995,14 @@ export default class AppDataClient {
       list: (collection, options) => this.list(collection, options),
       get: (id) => this.get(id),
       range: (collection, options) => this.range(collection, options),
-      search: (collection, text) => this.search(collection, text),
+      search: (collection, text, options) => this.search(collection, text, options),
       sharedWithMe: (options) => this.sharedWithMe(options),
       recent: (options) => this.recent(options),
       trash: (options) => this.trash(options),
       create: (collection, input) => this.create(collection, input),
       update: (id, patch, options) => this.update(id, patch, options),
       patch: (id, operations) => this.patch(id, operations),
+      batch: (operations) => this.batch(operations),
       remove: (id) => this.remove(id),
       restore: (id) => this.restore(id),
       purge: (id) => this.purge(id),
@@ -781,6 +1012,7 @@ export default class AppDataClient {
       subscribe: (target, callback) => this.subscribe(target, callback),
       status: () => this.status(),
       acknowledgeConflicts: () => this.acknowledgeConflicts(),
+      acknowledgeFailures: () => this.acknowledgeFailures(),
       onStatusChange: (callback) => this.onStatusChange(callback),
       flush: (options) => this.flush(options),
     };

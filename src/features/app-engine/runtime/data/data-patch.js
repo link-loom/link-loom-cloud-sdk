@@ -13,13 +13,19 @@ const MAX_PUSH_CAP = 1000;
 const MAX_PATH_SEGMENTS = 16;
 const MAX_PATH_SEGMENT_LENGTH = 128;
 const MAX_SEARCH_TEXT_LENGTH = 4096;
+const ARRAY_INDEX_PATTERN = /^\d+$/;
+// Paths are walked with plain property access: these segments would reach the prototype chain.
+const UNSAFE_SEGMENTS = ["__proto__", "constructor", "prototype"];
 
 const isValidSegment = (segment) =>
   typeof segment === "string" &&
   segment.length > 0 &&
   segment.length <= MAX_PATH_SEGMENT_LENGTH &&
   !segment.startsWith("$") &&
-  !segment.includes(".");
+  !segment.includes(".") &&
+  !UNSAFE_SEGMENTS.includes(segment);
+
+const ownValue = (target, key) => (Object.prototype.hasOwnProperty.call(target, key) ? target[key] : undefined);
 
 const isValidDataPath = (path) => {
   const segments = path.split(".");
@@ -115,7 +121,11 @@ const cloneRecord = (record) => JSON.parse(JSON.stringify(record || {}));
 const parentOf = (target, segments, { create }) => {
   let cursor = target;
   for (const segment of segments.slice(0, -1)) {
-    if (!isPlainObject(cursor[segment]) && !Array.isArray(cursor[segment])) {
+    if (Array.isArray(cursor) && !ARRAY_INDEX_PATTERN.test(segment)) {
+      return null;
+    }
+    const child = ownValue(cursor, segment);
+    if (!isPlainObject(child) && !Array.isArray(child)) {
       if (!create) {
         return null;
       }
@@ -127,7 +137,8 @@ const parentOf = (target, segments, { create }) => {
 };
 
 const arrayAt = (parent, key) => {
-  if (parent[key] === undefined || parent[key] === null) {
+  const current = ownValue(parent, key);
+  if (current === undefined || current === null) {
     parent[key] = [];
   }
   return Array.isArray(parent[key]) ? parent[key] : null;
@@ -163,11 +174,18 @@ export const applyPatchOperations = (record, operations) => {
     const value = normalizeTopLevelValue({ path, op, value: operation.value });
     const segments = path.split(".");
     const key = segments[segments.length - 1];
-    const parent = parentOf(next, segments, { create: op !== "unset" && op !== "pull" });
 
-    if (!parent) {
+    if (segments.some((segment) => UNSAFE_SEGMENTS.includes(segment))) {
       continue;
     }
+
+    const parent = parentOf(next, segments, { create: op !== "unset" && op !== "pull" });
+
+    if (!parent || (Array.isArray(parent) && !ARRAY_INDEX_PATTERN.test(key))) {
+      continue;
+    }
+
+    const current = ownValue(parent, key);
 
     switch (op) {
       case "set":
@@ -177,11 +195,15 @@ export const applyPatchOperations = (record, operations) => {
         delete parent[key];
         break;
       case "merge":
-        if (parent[key] === undefined || parent[key] === null) {
+        if (current === undefined || current === null) {
           parent[key] = {};
         }
         if (isPlainObject(parent[key])) {
-          Object.assign(parent[key], cloneRecord(value));
+          for (const [entryKey, entry] of Object.entries(cloneRecord(value))) {
+            if (!UNSAFE_SEGMENTS.includes(entryKey)) {
+              parent[key][entryKey] = entry;
+            }
+          }
         }
         break;
       case "add-to-set": {
@@ -192,12 +214,12 @@ export const applyPatchOperations = (record, operations) => {
         break;
       }
       case "pull":
-        if (Array.isArray(parent[key])) {
-          parent[key] = parent[key].filter((item) => !sameValue(item, value));
+        if (Array.isArray(current)) {
+          parent[key] = current.filter((item) => !sameValue(item, value));
         }
         break;
       case "increment":
-        if (parent[key] === undefined || parent[key] === null) {
+        if (current === undefined || current === null) {
           parent[key] = 0;
         }
         if (typeof parent[key] === "number") {

@@ -4,6 +4,8 @@ import { createUuid, isLocalId } from "../shared/runtime-ids";
 export const DATA_BATCH_PATH = "/app-engine/data/batch";
 const MAX_BATCH_SIZE = 50;
 const REFERENCE_FIELDS = ["id", "parent_id", "ref_id", "acl_source_id"];
+// A unique index of the app refused the write (409): not a revision conflict, so nothing to merge with.
+export const DUPLICATE_ERROR_CODE = "APP_DATA_DUPLICATE";
 
 // Outbox entries keep the client method names; the batch endpoint speaks the route names.
 const BATCH_OPERATION_NAMES = {
@@ -119,6 +121,14 @@ export default class AppDataOutbox {
 
     this._store.setOutbox([...current, entry]);
     return entry;
+  }
+
+  // Queued entries that need a record the server refused to create: they address its local id or name it as
+  // a reference, and would wait for an id that never comes.
+  removeDependentsOf(localId) {
+    return this.removeWhere(
+      (entry) => entry.target_id === localId || REFERENCE_FIELDS.some((field) => entry.payload?.[field] === localId),
+    );
   }
 
   removeWhere(predicate) {
@@ -274,7 +284,7 @@ export default class AppDataOutbox {
       return true;
     }
 
-    if (status === 409) {
+    if (status === 409 && record?.error_code !== DUPLICATE_ERROR_CODE) {
       this.#removeEntry(entry.client_mutation_id);
       await this._handlers.onConflict(entry, record?.current ?? null);
       return true;
