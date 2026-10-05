@@ -433,6 +433,38 @@ host's top bar is not 70px, set `--stos-topbar-h` on `:root`.
 
 ---
 
+## Search across apps (Omnisearch and the Launchpad)
+
+Every app with a backend declares the entities people can search in its namespace
+(`stoneos/docs/build-specs/_platform/platform-facade.md` §10). LLC merges them for the organization
+(`GET /app-engine/app-search/records`, as the person, no app session) and the SDK gives the host two surfaces:
+
+- **My apps (Launchpad).** Typing in the search field also lists the records the apps found, under the apps that
+  match, each with its app, kind of record and status. Opening one navigates to
+  `paths.runtime(<slug>)` plus the record's path (`/records?id=<id>`). It needs nothing from the host but the
+  `labels.records` copy (English by default).
+- **Omnisearch (`@link-loom/react-sdk` `OmniSearch`).** The host adds one category:
+
+  ```jsx
+  const appSearchCategory = useAppSearchCategory({
+    enabled: searchOpen,                 // asks which apps contribute the first time the search opens
+    baseUrl: LOOM_CLOUD_BACKEND_URL,
+    labels: copy.navbar.appSearch,       // { category: "In your apps" }
+    locale,
+  });
+  const categories = [ …, ...(appSearchCategory ? [appSearchCategory] : []), … ];
+  ```
+
+  The hook returns `null` while no app of the organization contributes, so no empty filter appears. Selecting a
+  result calls the category's `onSelect(hit, navigate)`, which navigates to
+  `/client/app-engine/runtime/<slug><deep_link>` (`hitRuntimePath(hit, basePath)`); the app opens the record with
+  its own `?id=` routing.
+
+Lower-level pieces, for hosts with their own surface: `createAppSearchClient({ baseUrl, getSession })`
+(`searchRecords({ text, limit })`, `listSources()`), `useAppRecordSearch({ query })`, `createRecordSearchRunner`,
+`hitRuntimePath`, `hitPathInApp`, `hitEntityLabel`, `hitContextLine`. A host never builds a path from a result
+without them: they refuse any link that is not a path inside the app.
+
 ## 7. Step 5 — labels (English default, host overrides)
 
 The SDK ships English. Pass only what differs; objects are deep-merged and functions replace functions.
@@ -443,6 +475,7 @@ Keys of `labels` (`LAUNCHPAD_LABELS`):
 `folderClose`, `results(count)`, `noResults(term)`, `searchStore(term)`, `emptyHint`, `loadFailed`, `retry`,
 `copyBlocked`, `group.{defaultName, nameLabel, rename, removeFromGroup}`,
 `menu.{open, newTab, pin, unpin, copyLink, viewInStore, linkCopied, pinFailed}`.
+`records.{searching, failed, found(count)}` — the records the apps of the organization found for the search text, listed under the apps that match it (see Search across apps below).
 
 Spanish, as a starting point (neutral Spanish; the host owns its copy):
 

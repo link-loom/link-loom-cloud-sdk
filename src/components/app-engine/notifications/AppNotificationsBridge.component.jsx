@@ -155,9 +155,11 @@ const dispatchNotification = (notification) =>
  *
  * With `getIdentitySession` (the host's `useAuth().getToken`) and a Link Loom Cloud base URL, the
  * bridge also listens to `user:{veripass_identity}` for `calendar.reminder` and
- * `<app_slug>.notify` signals of the given `appSlugs`.
+ * `<app_slug>.notify` signals of the given `appSlugs`. A signal carries its title and body per language
+ * (`titles`, `bodies`): `locale` picks the person's, else the default text. A signal about another
+ * organization than the session's is ignored.
  */
-function AppNotificationsBridge({ getIdentitySession, loomCloudBaseUrl, appSlugs = [] }) {
+function AppNotificationsBridge({ getIdentitySession, loomCloudBaseUrl, appSlugs = [], locale }) {
   const identitySession = readIdentitySession(getIdentitySession?.());
   const identityToken = identitySession?.token || "";
   const veripassIdentity = identitySession?.veripassIdentity || "";
@@ -180,7 +182,7 @@ function AppNotificationsBridge({ getIdentitySession, loomCloudBaseUrl, appSlugs
       .split(",")
       .map((signalName) =>
         hub.on(signalName, (payload) => {
-          const notification = signalToNotification(signalName, payload);
+          const notification = signalToNotification(signalName, payload, { locale, organizationId });
           if (notification) {
             dispatchNotification(notification);
           }
@@ -193,7 +195,7 @@ function AppNotificationsBridge({ getIdentitySession, loomCloudBaseUrl, appSlugs
       disposers.forEach((dispose) => dispose());
       hub.dispose();
     };
-  }, [identityToken, veripassIdentity, organizationId, baseUrl, signalNamesKey]);
+  }, [identityToken, veripassIdentity, organizationId, baseUrl, signalNamesKey, locale]);
 
   useEffect(() => {
     const handleNotification = (event) => {

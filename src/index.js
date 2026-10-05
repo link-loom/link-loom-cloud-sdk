@@ -47,6 +47,20 @@ export { AppEngineSDKProvider, useAppEngineSDK } from './features/app-engine/con
 export { default as useAppStudio } from './features/app-engine/hooks/useAppStudio';
 export { default as useAppRuntime } from './features/app-engine/hooks/useAppRuntime';
 
+// Search across the apps of an organization: Omnisearch category, launchpad results, client
+// (platform-facade §10 in stoneos/docs/build-specs/_platform).
+export { default as AppSearchClient, createAppSearchClient, APP_SEARCH_MIN_LENGTH } from './features/app-engine/search/app-search.client';
+export {
+  createAppSearchCategory,
+  AppSearchHit,
+  APP_SEARCH_CATEGORY_ID,
+  APP_SEARCH_LABELS,
+} from './features/app-engine/search/app-search.category';
+export { default as useAppSearchCategory } from './features/app-engine/search/useAppSearchCategory.hook';
+export { default as useAppRecordSearch } from './features/app-engine/search/useAppRecordSearch.hook';
+export { createRecordSearchRunner, RECORD_SEARCH_STATUSES } from './features/app-engine/search/app-search.runner';
+export { hitRuntimePath, hitPathInApp, hitEntityLabel, hitKey, hitContextLine } from './features/app-engine/search/app-search.utils';
+
 // App Engine runtime — identity, offline data, files, directory, notifications and app kit hooks
 export { default as AppIcon } from './components/app-engine/AppIcon.component';
 export {

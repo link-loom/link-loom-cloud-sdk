@@ -19,6 +19,12 @@ export const LAUNCHPAD_LABELS = {
   results: (count) => `${count} in your apps`,
   noResults: (term) => `No app named “${term}” in your apps.`,
   searchStore: (term) => `Search the App Store for “${term}”`,
+  // The records the apps of the organization found for the text of the search (platform-facade §10).
+  records: {
+    searching: "Searching inside your apps…",
+    failed: "Could not search inside your apps",
+    found: (count) => `${count} found inside your apps`,
+  },
   emptyHint: "Install the first one from the App Store. The StoneOS platforms are always in the folder.",
   loadFailed: "Could not load your apps",
   retry: "Retry",

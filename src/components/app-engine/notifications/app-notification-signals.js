@@ -24,8 +24,33 @@ const appSlugOfSignal = (signalName, payload) => {
   return null;
 };
 
+// A `.` or `..` segment (also percent-encoded) would climb out of the app once the host joins the path
+// to the app's runtime route.
+const DOT_SEGMENT = /(?:^|\/)(?:\.|%2e){1,2}(?:\/|$)/i;
+
+/**
+ * A path inside an app, as a deep link carries it: one leading slash, never an address of another
+ * site, no backslashes or whitespace and no dot segments, so that joining it to the app's route can
+ * only land inside the app.
+ */
+export const isAppPath = (value) =>
+  typeof value === "string" && /^\/(?!\/)[^\s\\]*$/.test(value) && !DOT_SEGMENT.test(value.split(/[?#]/)[0]);
+
+// The text in the language of the person (`titles` / `bodies` carry one per language), else the default.
+const localized = ({ text, texts, locale }) => {
+  const localizedText = locale && texts && typeof texts === "object" ? texts[locale] : null;
+
+  if (typeof localizedText === "string" && localizedText.trim()) {
+    return localizedText;
+  }
+
+  return typeof text === "string" ? text : "";
+};
+
 // The detail of an `stoneos::app-notification` event, or null when the signal is not a notification.
-export const signalToNotification = (signalName, payload) => {
+// `locale` picks the text of the person's language; `organizationId` is the organization the host is in:
+// a notice about another one is not for this window (the same person can be in two organizations).
+export const signalToNotification = (signalName, payload, { locale, organizationId } = {}) => {
   if (!payload || typeof payload !== "object" || typeof payload.title !== "string" || !payload.title.trim()) {
     return null;
   }
@@ -35,15 +60,20 @@ export const signalToNotification = (signalName, payload) => {
     return null;
   }
 
-  const deepLink = typeof payload.deepLink === "string" && payload.deepLink.startsWith("/") ? payload.deepLink : null;
+  const noticeOrganization = payload.organizationId || payload.organization_id;
+  if (noticeOrganization && organizationId && noticeOrganization !== organizationId) {
+    return null;
+  }
+
+  const deepLink = isAppPath(payload.deepLink) ? payload.deepLink : null;
 
   return {
     appSlug,
-    title: payload.title,
-    body: typeof payload.body === "string" ? payload.body : "",
+    title: localized({ text: payload.title, texts: payload.titles, locale }),
+    body: localized({ text: payload.body, texts: payload.bodies, locale }),
     deepLink,
     severity: SEVERITIES.includes(payload.severity) ? payload.severity : "info",
-    tag: typeof payload.tag === "string" ? payload.tag : null,
+    tag: typeof payload.tag === "string" && payload.tag ? payload.tag : null,
   };
 };
 

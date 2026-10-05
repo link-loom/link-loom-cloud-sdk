@@ -13,6 +13,9 @@ import { AppEngineSDKProvider } from "@/features/app-engine/context/AppEngineSDK
 import { useLaunchpadConfig } from "@/features/app-engine/launchpad/LaunchpadConfig.context";
 import useLaunchpadApps from "@/features/app-engine/launchpad/useLaunchpadApps.hook";
 import useLaunchpadLayout from "@/features/app-engine/launchpad/useLaunchpadLayout.hook";
+import useAppRecordSearch from "@/features/app-engine/search/useAppRecordSearch.hook";
+import { hitPathInApp } from "@/features/app-engine/search/app-search.utils";
+import { RECORD_SEARCH_STATUSES } from "@/features/app-engine/search/app-search.runner";
 import useReorderFlip from "@/features/app-engine/launchpad/useReorderFlip.hook";
 import {
   startTileDrag,
@@ -27,6 +30,7 @@ import { LAUNCHPAD_THEME as THEME } from "../defaults/launchpad.theme";
 import AppContextMenuComponent from "./AppContextMenu.component";
 import StoneOSTabsComponent from "./StoneOSTabs.component";
 import LaunchpadSearchFieldComponent from "./LaunchpadSearchField.component";
+import LaunchpadRecordResultsComponent from "./LaunchpadRecordResults.component";
 
 const TILE = 58;
 const GRID = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(128px, 1fr))", gap: "8px 12px" };
@@ -407,7 +411,7 @@ function LaunchpadErrorState({ title, retryLabel, onRetry }) {
 }
 
 function AppLaunchpadContent({ renderBridge }) {
-  const { labels, paths } = useLaunchpadConfig();
+  const { labels, paths, storeLabels } = useLaunchpadConfig();
   const navigate = useNavigate();
   const { apps, pinned, recent, platforms, isLoading, hasError, launch, togglePin, hrefFor, refresh } = useLaunchpadApps();
 
@@ -646,6 +650,15 @@ function AppLaunchpadContent({ renderBridge }) {
     return [...apps, ...platforms].filter((entry) => haystack(entry).includes(needle));
   }, [searching, needle, apps, platforms]);
 
+  // What the apps of the organization found inside their records for the same text; opening one goes
+  // to the record, inside its app, through the runtime route the host declared.
+  const recordSearch = useAppRecordSearch({ query, enabled: searching });
+  const openRecord = (hit) => {
+    const recordPath = hit?.app_slug ? hitPathInApp(hit, paths.runtime(encodeURIComponent(hit.app_slug))) : null;
+
+    if (recordPath) navigate(recordPath);
+  };
+
   const goStore = (term) => navigate(term ? `${paths.store}?q=${encodeURIComponent(term)}` : paths.store);
 
   const onSearchKeyDown = (event) => {
@@ -836,7 +849,14 @@ function AppLaunchpadContent({ renderBridge }) {
                   <AppTile key={entry.id} entry={entry} onOpen={launch} onContextMenu={openMenu} />
                 ))}
               </Box>
-              {matches.length === 0 && (
+              <LaunchpadRecordResultsComponent
+                hits={recordSearch.hits}
+                status={recordSearch.status}
+                labels={labels.records}
+                locale={storeLabels.locale}
+                onOpen={openRecord}
+              />
+              {matches.length === 0 && recordSearch.hits.length === 0 && recordSearch.status !== RECORD_SEARCH_STATUSES.loading && (
                 <Box sx={{ textAlign: "center", pt: 4.5, pb: 1, color: "text.secondary" }}>
                   <Typography variant="body1" sx={{ mb: 1.75, fontSize: 15 }}>
                     {labels.noResults(query.trim())}
