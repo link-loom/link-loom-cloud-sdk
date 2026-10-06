@@ -4,6 +4,7 @@ import { Box } from "@mui/material";
 import { PopUp } from "@link-loom/react-sdk";
 
 import { AppEngineSDKProvider } from "@/features/app-engine/context/AppEngineSDK.context";
+import { useLaunchpadConfig } from "@/features/app-engine/launchpad/LaunchpadConfig.context";
 import { AppStoreProvider, useAppStore } from "@/features/app-engine/app-store/AppStore.context";
 import { STORE_QUERY, STORE_SEGMENTS, STORE_VIEWS } from "@/features/app-engine/app-store/app-store.routes";
 import StoneOSTabsComponent from "../launchpad/StoneOSTabs.component";
@@ -282,8 +283,10 @@ function AppStoreInner({ renderBridge, renderCreateApp, contentHeight }) {
  *   52px tabs bar and a 50px footer.
  */
 function AppStoreComponent({ baseUrl, renderBridge, renderCreateApp, contentHeight = "calc(100vh - 172px)" }) {
+  const config = useLaunchpadConfig();
+
   return (
-    <AppEngineSDKProvider baseUrl={baseUrl}>
+    <AppEngineSDKProvider baseUrl={baseUrl || config.baseUrl}>
       <AppStoreInner renderBridge={renderBridge} renderCreateApp={renderCreateApp} contentHeight={contentHeight} />
     </AppEngineSDKProvider>
   );

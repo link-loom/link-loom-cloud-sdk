@@ -274,8 +274,10 @@ function LaunchpadRailContent() {
  * The host gives it a column to live in; see docs/11-launchpad-host-integration.md.
  */
 function LaunchpadRailComponent({ baseUrl }) {
+  const config = useLaunchpadConfig();
+
   return (
-    <AppEngineSDKProvider baseUrl={baseUrl}>
+    <AppEngineSDKProvider baseUrl={baseUrl || config.baseUrl}>
       <LaunchpadRailContent />
     </AppEngineSDKProvider>
   );

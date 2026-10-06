@@ -8,6 +8,10 @@ export { default as AppMarketplaceCardComponent } from './components/app-engine/
 
 // StoneOS launchpad (sidebar rail + "My apps") and App Store — see docs/11-launchpad-host-integration.md
 export { default as LaunchpadRailComponent } from './components/app-engine/launchpad/LaunchpadRail.component';
+export { default as StoneOSLaunchpadSidebar } from './components/app-engine/launchpad/StoneOSLaunchpadSidebar.component';
+export { default as StoneOSAppsPage } from './components/app-engine/launchpad/StoneOSAppsPage.component';
+export { default as StoneOSStorePage } from './components/app-engine/launchpad/StoneOSStorePage.component';
+export { default as stoneOSLaunchpadRoutes } from './features/app-engine/launchpad/stoneos-launchpad.routes';
 export { default as AppLaunchpadComponent } from './components/app-engine/launchpad/AppLaunchpad.component';
 export { default as AppStoreComponent } from './components/app-engine/app-store/AppStore.component';
 export { default as StoneOSTabsComponent } from './components/app-engine/launchpad/StoneOSTabs.component';
@@ -21,9 +25,11 @@ export {
   LAUNCHPAD_LABELS,
   APP_STORE_LABELS,
   LAUNCHPAD_PATHS,
+  STONEOS_LAUNCHPAD_SEGMENTS,
+  buildLaunchpadPaths,
   LAUNCHPAD_STORAGE_NAMESPACE,
 } from './components/app-engine/defaults/launchpad.defaults';
-export { LAUNCHPAD_THEME, LAUNCHPAD_RAIL_THEME } from './components/app-engine/defaults/launchpad.theme';
+export { LAUNCHPAD_THEME, LAUNCHPAD_RAIL_THEME, SIDEBAR_THEME } from './components/app-engine/defaults/launchpad.theme';
 // App Store closed values and routes — see docs/12-app-store-suites-entitlements.md
 export {
   STORE_CATEGORIES,

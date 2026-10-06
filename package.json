@@ -49,9 +49,10 @@
   "peerDependencies": {
     "@emotion/react": "^11.13.0",
     "@emotion/styled": "^11.13.0",
-    "@link-loom/react-sdk": ">=1.1.76",
+    "@link-loom/react-sdk": ">=1.1.78",
     "@mui/icons-material": "^6.1.0 || ^7.0.0",
     "@mui/material": "^6.1.0 || ^7.0.0",
+    "@veripass/react-sdk": ">=1.1.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-router-dom": "^5.0.0 || ^6.0.0 || ^7.0.0",

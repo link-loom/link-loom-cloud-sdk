@@ -1031,8 +1031,10 @@ function AppLaunchpadContent({ renderBridge }) {
  * launch, searchRef }`; it should render nothing visible.
  */
 function AppLaunchpadComponent({ baseUrl, renderBridge }) {
+  const config = useLaunchpadConfig();
+
   return (
-    <AppEngineSDKProvider baseUrl={baseUrl}>
+    <AppEngineSDKProvider baseUrl={baseUrl || config.baseUrl}>
       <AppLaunchpadContent renderBridge={renderBridge} />
     </AppEngineSDKProvider>
   );

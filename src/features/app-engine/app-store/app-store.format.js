@@ -1,4 +1,5 @@
 import { formatMoney } from "../../../monetization/format/value-formatter";
+import { STORE_CATEGORY_MARK_COLORS, STORE_MARK_COLORS } from "../../../components/app-engine/defaults/stoneos-store.palette";
 import {
   STORE_ACCESS_STATES,
   STORE_CATEGORIES,
@@ -26,6 +27,37 @@ export const titleFor = (dictionary, enumMap, value) => {
 };
 
 export const categoryTitle = (labels, category) => titleFor(labels.categoryTitles, STORE_CATEGORIES, category);
+
+/**
+ * The two letters of a mark: the first two of a one-word title (`Finance` → `FI`), the first of each of the
+ * first two words otherwise (`Human Resources` → `HR`). Read from the title on screen, so it follows the
+ * host's language.
+ */
+export const initialsOf = (title) => {
+  const words = String(title || "").trim().split(/\s+/).filter(Boolean);
+
+  if (!words.length) {
+    return "";
+  }
+
+  const letters = words.length === 1 ? Array.from(words[0]).slice(0, 2) : [Array.from(words[0])[0], Array.from(words[1])[0]];
+
+  return letters.join("").toUpperCase();
+};
+
+const hashOf = (text) => Array.from(String(text || "")).reduce((hash, character) => (hash * 31 + character.codePointAt(0)) >>> 0, 7);
+
+/** The same colour for the same name, every time and in every host. */
+export const markColorFor = (name) => STORE_MARK_COLORS[hashOf(name) % STORE_MARK_COLORS.length];
+
+export const categoryMarkColor = (category) => {
+  const name = enumName(category);
+
+  return STORE_CATEGORY_MARK_COLORS[name] || markColorFor(name);
+};
+
+/** A suite keeps the colour the catalog gave it; one that came without a colour takes one by its slug. */
+export const suiteMarkColor = (suite) => suite?.color || markColorFor(suite?.slug || suite?.name);
 
 export const categoryDescription = (labels, category) => {
   const key = enumKeyOf(STORE_CATEGORIES, category);

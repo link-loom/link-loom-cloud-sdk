@@ -7,6 +7,7 @@ import { useAuth } from "@veripass/react-sdk";
 import fetchAllPages from "@/services/utils/fetchAllPages";
 import AppIcon from "@/components/app-engine/AppIcon.component";
 import { getCategoryIcon, getCategoryTint } from "@/components/app-engine/categoryIcon.util";
+import { APP_RUNTIME_BASE_PATH } from "@/components/app-engine/notifications/app-notification-signals";
 
 const WidgetContainer = styled.div`
   display: flex;
@@ -43,7 +44,7 @@ const IconBox = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
-function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
+function PinnedAppsWidget({ maxItems = 8, onNavigateToApp, runtimeBasePath = APP_RUNTIME_BASE_PATH }) {
   const navigate = useNavigate();
   const { appPreferenceService, appDefinitionService } = useAppEngineSDK();
   const { user } = useAuth();
@@ -92,7 +93,7 @@ function PinnedAppsWidget({ maxItems = 8, onNavigateToApp }) {
     if (onNavigateToApp) {
       onNavigateToApp(app);
     } else {
-      navigate(`/client/app-engine/runtime/${app.slug}`);
+      navigate(`${runtimeBasePath}/${app.slug}`);
     }
   };
 

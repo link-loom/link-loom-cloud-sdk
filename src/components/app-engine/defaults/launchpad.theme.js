@@ -43,5 +43,22 @@ export const LAUNCHPAD_RAIL_THEME = {
   width: token("stos-launchpad-w", "50px"),
 };
 
+// The StoneOS Launchpad sidebar's palette. Each value is overridable on its own through
+// `--stos-sidebar-*`; without it, it follows the kit token, and without the kit it renders as Mi Retail.
+const sidebarToken = (name, kitToken, fallback) => `var(--stos-sidebar-${name}, var(--${kitToken}, ${fallback}))`;
+
+export const SIDEBAR_THEME = {
+  text: sidebarToken("text", "stos-text-secondary", "#515d72"),
+  textStrong: sidebarToken("text-strong", "stos-text-primary", "#1b2233"),
+  textMuted: sidebarToken("text-muted", "stos-text-tertiary", "#737f94"),
+  textDisabled: sidebarToken("text-disabled", "stos-text-disabled", "#b3bac7"),
+  hover: sidebarToken("hover", "stos-bg-hover", "#f2f4f8"),
+  selected: sidebarToken("selected", "stos-bg-selected", "#eceff5"),
+  border: sidebarToken("border", "stos-border", "#e4e8ef"),
+  borderStrong: sidebarToken("border-strong", "stos-border-strong", "#d3d9e3"),
+  focus: sidebarToken("focus", "stos-brand", "#3c4876"),
+  radius: sidebarToken("radius", "stos-radius-sm", "6px"),
+};
+
 // A color at a given opacity. `color-mix` works with tokens, which a hex alpha suffix cannot.
 export const alpha = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;

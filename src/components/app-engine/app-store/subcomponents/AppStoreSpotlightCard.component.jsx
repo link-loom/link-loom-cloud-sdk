@@ -36,7 +36,7 @@ function AppStoreSpotlightCardComponent({ app }) {
       component="section"
       aria-label={labels.discover.featured}
       className="loom-store-fade d-flex flex-column justify-content-between h-100"
-      sx={{ gap: 2.5, p: { xs: "22px 20px", md: "26px 28px" }, borderRadius: "18px", border: `1px solid ${COLORS.accentTintBorder}`, backgroundColor: COLORS.accentTint, boxSizing: "border-box" }}
+      sx={{ gap: 2.5, p: { xs: "22px 20px", md: "26px 28px" }, borderRadius: "18px", border: `1px solid ${COLORS.featuredTintBorder}`, backgroundColor: COLORS.featuredTint, boxSizing: "border-box" }}
     >
       <Box>
         <Typography component="p" sx={{ mb: 1.25, fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", lineHeight: 1.4, textTransform: "uppercase", color: COLORS.accent }}>

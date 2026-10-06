@@ -4,6 +4,8 @@
 // few strings keeps the rest.
 
 export const LAUNCHPAD_LABELS = {
+  // The name of the place in the navbar's breadcrumb, over My apps and the App Store.
+  stoneOS: "StoneOS",
   myApps: "My apps",
   appStore: "App Store",
   rail: { home: "StoneOS", allApps: "All apps", pinned: "Pinned", platforms: "Platforms" },
@@ -265,13 +267,29 @@ export const APP_STORE_LABELS = {
   categoryFallbackDescription: "Apps grouped by what they do, across every suite.",
 };
 
-// Where the launchpad sends people. `runtime` and `studio` build a path from an app definition.
-export const LAUNCHPAD_PATHS = {
-  apps: "/stoneos/apps",
-  store: "/stoneos/store",
-  runtime: (slug) => `/app-engine/runtime/${slug}`,
-  studio: (id) => `/app-engine/studio/${id}`,
+// The route segments the launchpad's pages live under, relative to where the host mounts them
+// (`stoneOSLaunchpadRoutes`). `store` is a splat: the App Store routes its own screens beneath it.
+export const STONEOS_LAUNCHPAD_SEGMENTS = {
+  section: "stoneos",
+  apps: "apps",
+  store: "store",
 };
+
+// Where the launchpad sends people, under the host's base path (`/client`, `/admin`, or none).
+// `runtime` and `studio` build a path from an app definition.
+export const buildLaunchpadPaths = (basePath = "") => {
+  const root = String(basePath || "").replace(/\/+$/, "");
+  const { section, apps, store } = STONEOS_LAUNCHPAD_SEGMENTS;
+
+  return {
+    apps: `${root}/${section}/${apps}`,
+    store: `${root}/${section}/${store}`,
+    runtime: (slug) => `${root}/app-engine/runtime/${slug}`,
+    studio: (id) => `${root}/app-engine/studio/${id}`,
+  };
+};
+
+export const LAUNCHPAD_PATHS = buildLaunchpadPaths();
 
 // Prefix of the browser storage keys (`<namespace>::launchpad::layout|recent|hidden-platforms`).
 export const LAUNCHPAD_STORAGE_NAMESPACE = "stoneos";

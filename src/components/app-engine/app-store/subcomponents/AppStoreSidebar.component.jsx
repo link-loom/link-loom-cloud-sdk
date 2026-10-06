@@ -10,7 +10,7 @@ import {
 
 import { useAppStore } from "@/features/app-engine/app-store/AppStore.context";
 import { STORE_PILL_SIZES, STORE_PILL_TONES, enumName } from "@/features/app-engine/app-store/app-store.enums";
-import { categoryTitle } from "@/features/app-engine/app-store/app-store.format";
+import { categoryMarkColor, categoryTitle, initialsOf, suiteMarkColor } from "@/features/app-engine/app-store/app-store.format";
 import { STORE_VIEWS } from "@/features/app-engine/app-store/app-store.routes";
 import { alpha } from "../../defaults/launchpad.theme";
 import { STORE_COLORS as COLORS } from "../../defaults/stoneos-store.palette";
@@ -299,7 +299,7 @@ function AppStoreSidebarComponent() {
           rail={rail}
           dense
           label={suite.name}
-          mark={<AppStoreSidebarGlyphComponent variant="suite" color={suite.color} />}
+          mark={<AppStoreSidebarGlyphComponent variant="suite" rail={rail} initials={initialsOf(suite.name)} color={suiteMarkColor(suite)} />}
           active={current.view === STORE_VIEWS.suite && current.suite === suite.slug}
           to={storePaths.suite(suite.slug)}
         />
@@ -316,13 +316,14 @@ function AppStoreSidebarComponent() {
       <SectionLabel rail={rail}>{labels.nav.categories}</SectionLabel>
       {catalogs.categories.map((category) => {
         const active = current.view === STORE_VIEWS.category && current.category === category.name;
+        const title = categoryTitle(labels, category);
         return (
           <SidebarRow
             key={category.key}
             rail={rail}
             dense
-            label={categoryTitle(labels, category)}
-            mark={<AppStoreSidebarGlyphComponent variant="category" active={active} />}
+            label={title}
+            mark={<AppStoreSidebarGlyphComponent variant="category" rail={rail} active={active} initials={initialsOf(title)} color={categoryMarkColor(category)} />}
             count={countsByName.get(category.name) ?? 0}
             active={active}
             to={storePaths.category(category.name)}
