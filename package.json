@@ -32,7 +32,7 @@
     "version-deploy": "npm publish"
   },
   "author": "Camilo Alexander Rodriguez Cuaran <camiepisode@outlook.com>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/link-loom/link-loom-cloud-sdk.git"
@@ -109,6 +109,7 @@
     "@storybook/react-vite": "^8.3.4",
     "@storybook/test": "^8.3.4",
     "postcss": "^8.4.38",
+    "react-router-dom": "^7.18.4",
     "rollup": "^4.13.2",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",

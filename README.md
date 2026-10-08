@@ -73,6 +73,13 @@ app bundle would load a duplicate ProseMirror instance.
 once per host with `LaunchpadProvider`. Integrating them into a host means shell changes as well; follow
 [docs/11-launchpad-host-integration.md](docs/11-launchpad-host-integration.md).
 
+## Platforms and the support center
+
+`stoneOSPlatformRoutes()` mounts the hub and the help center of every StoneOS platform (`STONEOS_PLATFORMS`),
+`supportCenterRoutes()` mounts the help center of one product anywhere, and `stoneOSAppsMenuItems()` gives the
+navbar's StoneOS menu its data. The assistant and the Command Center context come from the host, never from an
+import: see [docs/13-platforms-and-support.md](docs/13-platforms-and-support.md).
+
 ## StorageBrowser
 
 Finder-style file manager shared by the operator console and user-facing hosts.

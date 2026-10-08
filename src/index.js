@@ -36,6 +36,19 @@ export {
   LAUNCHPAD_STORAGE_NAMESPACE,
 } from './components/app-engine/defaults/launchpad.defaults';
 export { LAUNCHPAD_THEME, LAUNCHPAD_RAIL_THEME, SIDEBAR_THEME } from './components/app-engine/defaults/launchpad.theme';
+// StoneOS platforms — the catalog, the hub page of each platform, its routes and the navbar apps menu data.
+// See docs/13-platforms-and-support.md
+export {
+  STONEOS_PLATFORMS,
+  DEFAULT_HIDDEN_PLATFORMS,
+  platformsForSettings,
+  platformLabels,
+  platformIconSrc,
+} from './components/app-engine/defaults/stoneos-platforms.catalog';
+export { default as PlatformHub } from './components/app-engine/platforms/PlatformHub.component';
+export { PLATFORM_HUB_LABELS } from './components/app-engine/platforms/platform-hub.labels';
+export { default as stoneOSPlatformRoutes } from './features/app-engine/platforms/stoneos-platform.routes';
+export { stoneOSAppsMenuItems, APPS_MENU_LABELS } from './features/app-engine/platforms/apps-menu.items';
 // App Store closed values and routes — see docs/12-app-store-suites-entitlements.md
 export {
   STORE_CATEGORIES,
@@ -256,6 +269,20 @@ export {
   SEVERITY_CONFIG,
   PRIORITY_CONFIG,
 } from './components/support/defaults/support.defaults';
+
+// Support center — the whole help center of a product as one route group, see docs/13-platforms-and-support.md
+export { default as SupportCenterLayout } from './components/support/center/SupportCenterLayout.component';
+export { default as supportCenterRoutes, supportCenterChildRoutes } from './features/support/center/support-center.routes';
+export { SUPPORT_CENTER_LABELS } from './components/support/center/support-center.labels';
+export { SUPPORT_SUB_PAGES } from './components/support/center/support-center.navigation';
+export { default as SupportHubSubPage } from './components/support/center/sub-pages/SupportHubSubPage.component';
+export { default as SupportCasesSubPage } from './components/support/center/sub-pages/SupportCasesSubPage.component';
+export { default as SupportNewCaseSubPage } from './components/support/center/sub-pages/SupportNewCaseSubPage.component';
+export { default as SupportCaseDetailSubPage } from './components/support/center/sub-pages/SupportCaseDetailSubPage.component';
+export { default as SupportAssistantSubPage } from './components/support/center/sub-pages/SupportAssistantSubPage.component';
+export { default as SupportIncidentsSubPage } from './components/support/center/sub-pages/SupportIncidentsSubPage.component';
+export { default as SupportGuideDetailSubPage } from './components/support/center/sub-pages/SupportGuideDetailSubPage.component';
+export { default as SupportCategoriesSubPage } from './components/support/center/sub-pages/SupportCategoriesSubPage.component';
 
 // Support Context + Hook
 export { SupportSDKProvider, useSupportSDK } from './features/support/context/SupportSDK.context';
