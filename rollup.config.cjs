@@ -112,6 +112,8 @@ const mainBundle = {
       format: 'cjs',
       sourcemap: true,
       exports: 'named',
+      // CommonJS consumers (Jest, Node) get each package's default export, whether it ships CJS or ESM-in-CJS.
+      interop: 'auto',
       entryFileNames: 'cloud-sdk.cjs.cjs',
       chunkFileNames: 'chunks/cjs/[name]-[hash].cjs',
     },
