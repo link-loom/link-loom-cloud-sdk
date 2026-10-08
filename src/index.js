@@ -19,6 +19,12 @@ export { default as StoneOSMark } from './components/app-engine/launchpad/StoneO
 export { default as LaunchpadSearchFieldComponent } from './components/app-engine/launchpad/LaunchpadSearchField.component';
 export { default as CatalogAppIconComponent, hasSvgAppIcon } from './components/app-engine/CatalogAppIcon.component';
 export { LaunchpadProvider, useLaunchpadConfig } from './features/app-engine/launchpad/LaunchpadConfig.context';
+export {
+  LAUNCHPAD_LABELS_ES,
+  APP_STORE_LABELS_ES,
+  launchpadLabels,
+  appStoreLabels,
+} from './components/app-engine/defaults/launchpad.labels';
 export { default as useLaunchpadApps, toPlatformEntry } from './features/app-engine/launchpad/useLaunchpadApps.hook';
 export { default as useLaunchpadLayout } from './features/app-engine/launchpad/useLaunchpadLayout.hook';
 export {
