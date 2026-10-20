@@ -17,6 +17,21 @@ const decodeTokenExpiry = (token) => {
   }
 };
 
+const roleNameOf = (assignment) => assignment?.context?.role?.name || assignment?.role_slug || null;
+
+const belongsToOrganization = (assignment, organizationId) =>
+  !assignment?.organization_id || assignment.organization_id === organizationId;
+
+// Role names the person holds in one organization; an assignment without organization applies to all.
+const roleNamesIn = (assignments, organizationId) => [
+  ...new Set(
+    assignments
+      .filter((assignment) => belongsToOrganization(assignment, organizationId))
+      .map(roleNameOf)
+      .filter(Boolean),
+  ),
+];
+
 // Normalizes the Veripass session (`useAuth().getToken()`) into what the runtime needs.
 // Returns null when there is no usable session, so apps keep working without identity.
 export const readIdentitySession = (rawSession) => {
@@ -26,6 +41,7 @@ export const readIdentitySession = (rawSession) => {
 
   const organizationId = rawSession.memberships?.active?.organization_id || rawSession.payload?.organization_id || null;
   const profile = rawSession.payload?.profile || {};
+  const assignments = Array.isArray(rawSession.payload?.roles) ? rawSession.payload.roles : [];
 
   return {
     token: rawSession.token,
@@ -33,7 +49,11 @@ export const readIdentitySession = (rawSession) => {
     organizationId,
     userId: rawSession.payload?.user_id || rawSession.identity,
     expiresAt: decodeTokenExpiry(rawSession.token),
-    memberships: rawSession.memberships?.items || [],
+    memberships: (rawSession.memberships?.items || []).map((membership) => {
+      const role = roleNamesIn(assignments, membership?.organization_id)[0];
+      return role ? { ...membership, role } : membership;
+    }),
+    roles: roleNamesIn(assignments, organizationId),
     profile,
   };
 };
@@ -73,6 +93,7 @@ export const buildSdkIdentity = (identitySession, directoryProfile) => {
     avatarUrl: profile.avatar_url || null,
     email: profile.email || profile.primary_email_address || null,
     memberships: identitySession.memberships,
+    roles: identitySession.roles || [],
   };
 };
 
